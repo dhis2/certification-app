@@ -1,6 +1,6 @@
 # DHIS2 Certification App
 
-NestJS API + React client for DHIS2 server certification assessments and W3C Verifiable Credential issuance.
+DHIS2 certification assessments and W3C Verifiable Credential issuance.
 
 ## Prerequisites
 
