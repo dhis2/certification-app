@@ -47,7 +47,7 @@
     "ioredis": "^5.9.2",
     "js-yaml": "^4.1.1",
     "jsonld": "^9.0.0",
-    "nodemailer": "^7.0.12",
+    "nodemailer": "^8.0.1",
     "otplib": "^13.3.0",
     "pg": "^8.18.0",
     "qrcode": "^1.5.4",
