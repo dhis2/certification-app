@@ -1,0 +1,259 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository }}/api
+  CLIENT_IMAGE: ghcr.io/${{ github.repository }}/client
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-24.04
+    outputs:
+      releases-created: ${{ steps.release.outputs.releases_created }}
+      api-release-created: ${{ steps.release.outputs.api--release_created }}
+      client-release-created: ${{ steps.release.outputs.client--release_created }}
+    steps:
+      - name: Create or update release PRs
+        id: release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+        with:
+          manifest-file: .release-please-manifest.json
+          config-file: release-please-config.json
+
+  resolve-tags:
+    name: Resolve Image Tags
+    runs-on: ubuntu-24.04
+    needs: [release-please]
+    if: needs.release-please.outputs.releases-created == 'true'
+    permissions:
+      contents: read
+    outputs:
+      api-tag: ${{ steps.tags.outputs.api-tag }}
+      client-tag: ${{ steps.tags.outputs.client-tag }}
+      api-major-minor: ${{ steps.tags.outputs.api-major-minor }}
+      client-major-minor: ${{ steps.tags.outputs.client-major-minor }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Read manifest and resolve tags
+        id: tags
+        run: |
+          API_VERSION=$(jq -r '.api' .release-please-manifest.json)
+          CLIENT_VERSION=$(jq -r '.client' .release-please-manifest.json)
+
+          echo "api-tag=v${API_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "client-tag=v${CLIENT_VERSION}" >> "$GITHUB_OUTPUT"
+
+          API_MAJOR_MINOR=$(echo "$API_VERSION" | cut -d. -f1-2)
+          CLIENT_MAJOR_MINOR=$(echo "$CLIENT_VERSION" | cut -d. -f1-2)
+          echo "api-major-minor=v${API_MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
+          echo "client-major-minor=v${CLIENT_MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
+
+  build-api:
+    name: Build API Release Image
+    runs-on: ubuntu-24.04
+    needs: [resolve-tags]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ needs.resolve-tags.outputs.api-tag }}
+            ${{ env.API_IMAGE }}:${{ needs.resolve-tags.outputs.api-major-minor }}
+            ${{ env.API_IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.resolve-tags.outputs.api-tag }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign image
+        run: cosign sign --yes ${{ env.API_IMAGE }}@${{ steps.build.outputs.digest }}
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        with:
+          subject-name: ${{ env.API_IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  build-client:
+    name: Build Client Release Image
+    runs-on: ubuntu-24.04
+    needs: [resolve-tags]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.CLIENT_IMAGE }}:${{ needs.resolve-tags.outputs.client-tag }}
+            ${{ env.CLIENT_IMAGE }}:${{ needs.resolve-tags.outputs.client-major-minor }}
+            ${{ env.CLIENT_IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.resolve-tags.outputs.client-tag }}
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,scope=client,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign image
+        run: cosign sign --yes ${{ env.CLIENT_IMAGE }}@${{ steps.build.outputs.digest }}
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        with:
+          subject-name: ${{ env.CLIENT_IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  scan-images:
+    name: Security Scan
+    runs-on: ubuntu-24.04
+    needs: [build-api, build-client]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        with:
+          image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api.outputs.digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Scan Client image
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        with:
+          image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client.outputs.digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  deploy-staging:
+    name: Deploy Staging
+    needs: [resolve-tags, build-api, build-client, scan-images]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      api-tag: ${{ needs.resolve-tags.outputs.api-tag }}
+      client-tag: ${{ needs.resolve-tags.outputs.client-tag }}
+    secrets: inherit
+
+  e2e-staging:
+    name: E2E Tests (Staging)
+    runs-on: ubuntu-24.04
+    needs: [deploy-staging]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: ./.github/actions
+        with:
+          working-directory: client
+
+      - name: Install Playwright browsers
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests against staging
+        working-directory: client
+        env:
+          PLAYWRIGHT_BASE_URL: https://staging.${{ vars.DOMAIN }}
+          CI: "true"
+        run: npx playwright test --project=chromium
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report-staging
+          path: client/playwright-report/
+          retention-days: 14
+
+  deploy-production:
+    name: Deploy Production
+    needs: [resolve-tags, build-api, build-client, e2e-staging]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      api-tag: ${{ needs.resolve-tags.outputs.api-tag }}
+      client-tag: ${{ needs.resolve-tags.outputs.client-tag }}
+    secrets: inherit

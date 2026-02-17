@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+build
+coverage
+.env
+.env.*
+!.env.example
+.git
+.DS_Store
+README.md
+.husky
+e2e
+test-results
+playwright-report
+playwright.config.ts

@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "services-alphabetical-order": 0,
+    "service-keys-order": 2,
+    "no-build-and-image": 0,
+    "service-image-require-explicit-tag": 0,
+    "no-unbound-port-interfaces": 2,
+    "require-quotes-in-ports": [
+      2,
+      {
+        "quoteType": "double"
+      }
+    ]
+  },
+  "quiet": false,
+  "debug": true,
+  "exclude": [
+    "tests"
+  ]
+}

@@ -1,0 +1,145 @@
+x-common-networks: &common-networks
+  - dhis2-cert-api
+name: dhis2-cert-app
+
+services:
+  dhis2-cert-db:
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: "no"
+
+  dhis2-cert-redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: "no"
+
+  dhis2-cert-migrations:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: dev
+    container_name: dhis2-cert-migrations
+    depends_on:
+      dhis2-cert-db:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      DB_HOST: dhis2-cert-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      SKIP_MIGRATIONS: ${SKIP_MIGRATIONS:-false}
+      RUN_SEEDS: ${RUN_SEEDS:-true}
+    env_file:
+      - .env
+    networks: *common-networks
+    command: >
+      sh -c "
+        if [ \"\$SKIP_MIGRATIONS\" = \"true\" ]; then
+          echo 'Skipping migrations (SKIP_MIGRATIONS=true)';
+        else
+          echo 'Running migrations...' &&
+          if npm run migration:run; then
+            echo 'Migrations completed successfully';
+          else
+            echo 'Migration failed!' && exit 1;
+          fi
+        fi &&
+        if [ \"\$RUN_SEEDS\" = \"true\" ]; then
+          echo 'Running seeds...' &&
+          npm run seed;
+        else
+          echo 'Skipping seeds (RUN_SEEDS=false)';
+        fi
+      "
+    restart: "no"
+
+  dhis2-cert-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: dev
+    container_name: dhis2-cert-api
+    depends_on:
+      dhis2-cert-db:
+        condition: service_healthy
+      dhis2-cert-migrations:
+        condition: service_completed_successfully
+      dhis2-cert-redis:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      DB_HOST: dhis2-cert-db
+      REDIS_HOST: dhis2-cert-redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:${PORT}:${PORT}"
+    networks: *common-networks
+    command: npm run start:debug
+    restart: "no"
+    labels: []
+
+  dhis2-cert-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      target: dev
+    container_name: dhis2-cert-client
+    depends_on:
+      - dhis2-cert-api
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:${PORT:-3001}/api/v1
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:24678:24678"
+    networks: *common-networks
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  dhis2-cert-vault:
+    command: server -dev -dev-root-token-id=dev-root-token
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: dev-root-token
+      BAO_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "127.0.0.1:8200:8200"
+    restart: "no"
+
+  dhis2-cert-vault-init:
+    image: openbao/openbao:2.1.1
+    container_name: dhis2-cert-vault-init
+    profiles: ["vault"]
+    depends_on:
+      dhis2-cert-vault:
+        condition: service_healthy
+    volumes:
+      - ./docker/init-vault.sh:/init-vault.sh:ro
+    environment:
+      VAULT_ADDR: http://dhis2-cert-vault:8200
+      VAULT_TOKEN: dev-root-token
+    entrypoint: ["sh", "/init-vault.sh"]
+    networks: *common-networks
+    restart: "no"
+
+networks:
+  traefik-public:
+    driver: bridge
+  dhis2-cert-api:
+    internal: false
+    name: dhis2-cert-api

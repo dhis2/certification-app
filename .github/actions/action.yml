@@ -1,0 +1,27 @@
+name: Setup Node Project
+description: Setup Node.js with npm cache and install dependencies
+
+inputs:
+  working-directory:
+    description: Directory containing package.json
+    required: true
+  node-version:
+    description: Node.js version to use
+    required: false
+    default: "22"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      with:
+        path: ${{ inputs.working-directory }}/node_modules
+        key: deps-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working-directory)) }}
+
+    - shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci --prefer-offline

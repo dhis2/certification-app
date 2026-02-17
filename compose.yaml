@@ -1,0 +1,240 @@
+x-common-networks: &common-networks
+  - dhis2-cert-api
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+name: dhis2-cert-app
+
+services:
+  dhis2-cert-db:
+    image: postgres:18.1
+    container_name: dhis2-cert-db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/pgdata
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    environment:
+      TZ: UTC
+      POSTGRES_USER: ${DB_USER?Variable not set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD?Variable not set}
+      POSTGRES_DB: ${DB_NAME?Variable not set}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    networks: *common-networks
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 30s
+      retries: 3
+      start_period: 30s
+      timeout: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  dhis2-cert-redis:
+    image: redis:7-alpine
+    container_name: dhis2-cert-redis
+    volumes:
+      - redis-data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD?Variable not set}
+    networks: *common-networks
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD?Variable not set}
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  dhis2-cert-migrations:
+    image: ${DHIS2_CERT_API_IMAGE}:${TAG?Variable not set}
+    container_name: dhis2-cert-migrations
+    depends_on:
+      dhis2-cert-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_HOST: dhis2-cert-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      RUN_SEEDS: ${RUN_SEEDS:-false}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    env_file:
+      - .env
+    networks: *common-networks
+    command: >
+      sh -c "
+        echo 'Running migrations...' &&
+        timeout 300 node dist/database/run-migrations.js ||
+        { echo 'Migration failed or timed out'; exit 1; } &&
+        echo 'Migrations completed' &&
+        if [ \"\$RUN_SEEDS\" = \"true\" ]; then
+          echo 'Running seeds...' &&
+          node dist/database/seeds/seed.js;
+        fi
+      "
+    restart: "no"
+    logging: *default-logging
+
+  dhis2-cert-api:
+    image: ${DHIS2_CERT_API_IMAGE?Variable not set}:${TAG?Variable not set}
+    container_name: dhis2-cert-api
+    depends_on:
+      dhis2-cert-db:
+        condition: service_healthy
+      dhis2-cert-migrations:
+        condition: service_completed_successfully
+      dhis2-cert-redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      TZ: UTC
+      PORT: ${PORT?Variable not set}
+      DB_HOST: dhis2-cert-db
+      REDIS_HOST: dhis2-cert-redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD?Variable not set}
+      DOMAIN: ${DOMAIN?Variable not set}
+      JWT_SECRET: ${JWT_SECRET?Variable not set}
+      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL?Variable not set}
+      JWT_REFRESH_TOKEN_TTL: ${JWT_REFRESH_TOKEN_TTL?Variable not set}
+      JWT_TOKEN_AUDIENCE: ${JWT_TOKEN_AUDIENCE?Variable not set}
+      JWT_TOKEN_ISSUER: ${JWT_TOKEN_ISSUER?Variable not set}
+      JWT_ALGORITHM: "HS256"
+      CORS_ORIGIN: ${CORS_ORIGIN?Variable not set}
+      SIGNING_KEY_PATH: ${SIGNING_KEY_PATH?Variable not set}
+      SIGNING_PUBLIC_KEY_PATH: ${SIGNING_PUBLIC_KEY_PATH?Variable not set}
+      SIGNING_KEY_PASSPHRASE: ${SIGNING_KEY_PASSPHRASE?Variable not set}
+      USE_VAULT: ${USE_VAULT?Variable not set}
+    env_file:
+      - .env
+    networks:
+      - traefik-public
+      - dhis2-cert-api
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:${PORT}/health/live" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.services.${STACK_NAME?Variable not set}-backend.loadbalancer.server.port=${PORT?Variable not set}
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-http.rule=Host(`${DOMAIN?Variable not set}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/health`))
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.rule=Host(`${DOMAIN?Variable not set}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/health`))
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.tls.certresolver=le
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    stop_grace_period: 30s
+
+  dhis2-cert-client:
+    image: ${DHIS2_CERT_CLIENT_IMAGE?Variable not set}:${CLIENT_TAG?Variable not set}
+    container_name: dhis2-cert-client
+    depends_on:
+      dhis2-cert-api:
+        condition: service_healthy
+    networks:
+      - traefik-public
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.services.${STACK_NAME?Variable not set}-client.loadbalancer.server.port=3000
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-http.rule=Host(`${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-http.priority=1
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-https.rule=Host(`${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-https.tls.certresolver=le
+      - traefik.http.routers.${STACK_NAME?Variable not set}-client-https.priority=1
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 32M
+    stop_grace_period: 15s
+
+  dhis2-cert-vault:
+    image: openbao/openbao:2.1.1
+    container_name: dhis2-cert-vault
+    profiles: ["vault"]
+    volumes:
+      - vault-data:/vault/data
+      - ./docker/vault-config.hcl:/vault/config/config.hcl:ro
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    command: server -config=/vault/config/config.hcl
+    networks: *common-networks
+    restart: always
+    healthcheck:
+      test: ["CMD", "bao", "status", "-format=json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+networks:
+  traefik-public:
+    external: true
+  dhis2-cert-api:
+    internal: true
+
+volumes:
+  postgres-data:
+  redis-data:
+  vault-data:

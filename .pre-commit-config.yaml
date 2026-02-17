@@ -1,0 +1,81 @@
+minimum_pre_commit_version: '4.3.0'
+
+default_language_version:
+  python: python3
+
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
+repos:
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.9.1
+    hooks:
+      - id: commitizen
+        stages: [ commit-msg ]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-json
+      - id: check-added-large-files
+        args: [ --maxkb, '1000' ]
+
+  - repo: local
+    hooks:
+      - id: api-prettier
+        name: api prettier
+        entry: npx --prefix api prettier --write --ignore-unknown
+        language: system
+        files: ^api/
+        exclude: node_modules|dist
+        types_or: [ ts, javascript, json ]
+
+      - id: api-eslint
+        name: api eslint
+        entry: npm --prefix api run lint
+        language: system
+        files: ^api/src/.*\.ts$
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: client-prettier
+        name: client prettier
+        entry: npx --prefix client prettier --write --ignore-unknown
+        language: system
+        files: ^client/
+        exclude: node_modules|dist
+        types_or: [ ts, tsx, javascript, json, css ]
+
+      - id: client-eslint
+        name: client eslint
+        entry: >-
+          npx --prefix client eslint --fix
+          --ext ts,tsx
+          --report-unused-disable-directives
+          --max-warnings 0
+        language: system
+        files: ^client/.*\.tsx?$
+        pass_filenames: true
+
+  - repo: local
+    hooks:
+      - id: docker-compose-linter
+        name: docker-compose-linter
+        entry: dclint
+        language: node
+        additional_dependencies: [ dclint@3.1.0 ]
+        files: (docker-)?compose.*\.ya?ml$
+        args: [ '--fix', '--recursive' ]

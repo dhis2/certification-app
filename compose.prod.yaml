@@ -1,0 +1,69 @@
+name: dhis2-cert-app
+
+services:
+  dhis2-cert-api:
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /app/logs
+
+  dhis2-cert-client:
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+
+  dhis2-cert-db:
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run/postgresql
+
+  dhis2-cert-redis:
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+  dhis2-cert-migrations:
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+  dhis2-cert-vault:
+    cap_drop:
+      - ALL
+    cap_add:
+      - IPC_LOCK
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp

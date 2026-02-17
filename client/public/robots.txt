@@ -1,0 +1,4 @@
+# Allow public certificate verification, block authenticated app routes
+User-agent: *
+Allow: /verify/
+Disallow: /

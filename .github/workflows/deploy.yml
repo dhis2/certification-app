@@ -1,0 +1,243 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      api-tag:
+        required: true
+        type: string
+      client-tag:
+        required: true
+        type: string
+      skip_migrations:
+        required: false
+        type: boolean
+        default: false
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      api-tag:
+        description: "API image tag (e.g., sha-abc1234 or v1.2.3)"
+        required: true
+        type: string
+      client-tag:
+        description: "Client image tag (e.g., sha-abc1234 or v1.2.3)"
+        required: true
+        type: string
+      skip_migrations:
+        description: Skip database migrations
+        required: false
+        default: false
+        type: boolean
+
+permissions: {}
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository }}/api
+  CLIENT_IMAGE: ghcr.io/${{ github.repository }}/client
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: [self-hosted, linux, x64, deploy]
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://${{ inputs.environment == 'production' && vars.DOMAIN || format('staging.{0}', vars.DOMAIN) }}
+    env:
+      APP_DIR: /home/deploy/dhis2-cert-${{ inputs.environment }}
+      API_TAG: ${{ inputs.api-tag }}
+      CLIENT_TAG: ${{ inputs.client-tag }}
+    steps:
+      - name: Fix workspace permissions
+        run: sudo chown -R "$(whoami):$(id -gn)" "${{ github.workspace }}" || true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          clean: true
+
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Prepare deployment directory
+        run: mkdir -p "${{ env.APP_DIR }}/secrets"
+
+      - name: Write secrets
+        run: |
+          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/db_password"
+          echo -n "${{ secrets.DB_PASSWORD }}" > "${{ env.APP_DIR }}/secrets/db_password"
+          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/redis_password"
+          echo -n "${{ secrets.REDIS_PASSWORD }}" > "${{ env.APP_DIR }}/secrets/redis_password"
+          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/jwt_secret"
+          echo -n "${{ secrets.JWT_SECRET }}" > "${{ env.APP_DIR }}/secrets/jwt_secret"
+          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/signing_key_passphrase"
+          echo -n "${{ secrets.SIGNING_KEY_PASSPHRASE }}" > "${{ env.APP_DIR }}/secrets/signing_key_passphrase"
+          if [ "${{ vars.USE_VAULT }}" = "true" ]; then
+            install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/vault_role_id"
+            echo -n "${{ secrets.VAULT_ROLE_ID }}" > "${{ env.APP_DIR }}/secrets/vault_role_id"
+            install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/vault_secret_id"
+            echo -n "${{ secrets.VAULT_SECRET_ID }}" > "${{ env.APP_DIR }}/secrets/vault_secret_id"
+          fi
+
+      - name: Generate .env file
+        run: |
+          cat > "${{ env.APP_DIR }}/.env" <<'ENVEOF'
+          NODE_ENV=production
+          PORT=${{ vars.PORT }}
+          DOMAIN=${{ inputs.environment == 'production' && vars.DOMAIN || format('staging.{0}', vars.DOMAIN) }}
+          STACK_NAME=${{ vars.STACK_NAME }}
+          DB_HOST=dhis2-cert-db
+          DB_PORT=5432
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_POOL_SIZE=${{ vars.DB_POOL_SIZE || '10' }}
+          DATABASE_SSL=${{ vars.DATABASE_SSL || 'false' }}
+          RUN_SEEDS=${{ vars.RUN_SEEDS || 'false' }}
+          SEED_ADMIN_EMAIL=${{ secrets.SEED_ADMIN_EMAIL }}
+          SEED_ADMIN_PASSWORD=${{ secrets.SEED_ADMIN_PASSWORD }}
+          REDIS_HOST=dhis2-cert-redis
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_ACCESS_TOKEN_TTL=${{ vars.JWT_ACCESS_TOKEN_TTL }}
+          JWT_REFRESH_TOKEN_TTL=${{ vars.JWT_REFRESH_TOKEN_TTL }}
+          JWT_TOKEN_ISSUER=${{ vars.JWT_TOKEN_ISSUER }}
+          JWT_TOKEN_AUDIENCE=${{ vars.JWT_TOKEN_AUDIENCE }}
+          CORS_ORIGIN=${{ vars.CORS_ORIGIN }}
+          SIGNING_KEY_PATH=${{ vars.SIGNING_KEY_PATH }}
+          SIGNING_PUBLIC_KEY_PATH=${{ vars.SIGNING_PUBLIC_KEY_PATH }}
+          SIGNING_KEY_PASSPHRASE=${{ secrets.SIGNING_KEY_PASSPHRASE }}
+          USE_VAULT=${{ vars.USE_VAULT || 'false' }}
+          VAULT_ADDR=${{ vars.VAULT_ADDR || '' }}
+          VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID || '' }}
+          VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID || '' }}
+          DHIS2_CERT_API_IMAGE=${{ env.API_IMAGE }}
+          DHIS2_CERT_CLIENT_IMAGE=${{ env.CLIENT_IMAGE }}
+          TAG=${{ env.API_TAG }}
+          CLIENT_TAG=${{ env.CLIENT_TAG }}
+          ENVEOF
+
+      - name: Copy compose files
+        run: |
+          cp compose.yaml "${{ env.APP_DIR }}/"
+          cp compose.prod.yaml "${{ env.APP_DIR }}/"
+
+      - name: Pull images
+        working-directory: ${{ env.APP_DIR }}
+        run: docker compose -f compose.yaml -f compose.prod.yaml pull
+
+      - name: Store previous image for rollback
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          docker inspect dhis2-cert-api --format='{{.Config.Image}}' 2>/dev/null > .previous-api-image || echo "none" > .previous-api-image
+          docker inspect dhis2-cert-client --format='{{.Config.Image}}' 2>/dev/null > .previous-client-image || echo "none" > .previous-client-image
+
+      - name: Run database migrations
+        if: ${{ !inputs.skip_migrations }}
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          docker compose -f compose.yaml -f compose.prod.yaml up -d dhis2-cert-db
+          timeout 60 bash -c 'until docker compose -f compose.yaml -f compose.prod.yaml exec -T dhis2-cert-db pg_isready -U "${{ secrets.DB_USER }}"; do sleep 2; done'
+          docker compose -f compose.yaml -f compose.prod.yaml up dhis2-cert-migrations --exit-code-from dhis2-cert-migrations
+
+      - name: Deploy services
+        working-directory: ${{ env.APP_DIR }}
+        run: docker compose -f compose.yaml -f compose.prod.yaml up -d --no-deps --force-recreate dhis2-cert-api dhis2-cert-client
+
+      - name: Wait for healthy
+        working-directory: ${{ env.APP_DIR }}
+        run: timeout 120 bash -c 'until docker compose -f compose.yaml -f compose.prod.yaml exec -T dhis2-cert-api wget --spider -q http://localhost:${{ vars.PORT }}/health/live; do sleep 3; done'
+
+  smoke-test:
+    name: Smoke Test (${{ inputs.environment }})
+    runs-on: [self-hosted, linux, x64, deploy]
+    needs: [deploy]
+    permissions:
+      contents: read
+    env:
+      BASE_URL: https://${{ inputs.environment == 'production' && vars.DOMAIN || format('staging.{0}', vars.DOMAIN) }}
+    steps:
+      - name: Liveness check
+        run: curl -sf "${{ env.BASE_URL }}/health/live" || exit 1
+
+      - name: Readiness check
+        run: curl -sf "${{ env.BASE_URL }}/health/ready" || exit 1
+
+      - name: API functional check
+        run: curl -sf "${{ env.BASE_URL }}/api/v1/templates" || exit 1
+
+      - name: Client reachable
+        run: curl -sf "${{ env.BASE_URL }}/" || exit 1
+
+      - name: Response time check
+        run: |
+          RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" "${{ env.BASE_URL }}/health/live")
+          awk "BEGIN { exit ($RESPONSE_TIME > 5.0) ? 1 : 0 }"
+
+  rollback:
+    name: Rollback (${{ inputs.environment }})
+    runs-on: [self-hosted, linux, x64, deploy]
+    needs: [smoke-test]
+    if: failure()
+    permissions:
+      contents: read
+      packages: read
+    env:
+      APP_DIR: /home/deploy/dhis2-cert-${{ inputs.environment }}
+    steps:
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Rollback API
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          PREV_API=$(cat .previous-api-image 2>/dev/null || echo "none")
+          PREV_CLIENT=$(cat .previous-client-image 2>/dev/null || echo "none")
+
+          if [ "$PREV_API" = "none" ] || [ -z "$PREV_API" ]; then
+            echo "No previous API image found -- manual intervention required"
+            exit 1
+          fi
+
+          PREV_API_REPO=$(echo "$PREV_API" | rev | cut -d: -f2- | rev)
+          PREV_API_TAG=$(echo "$PREV_API" | rev | cut -d: -f1 | rev)
+          export DHIS2_CERT_API_IMAGE="$PREV_API_REPO"
+          export TAG="$PREV_API_TAG"
+
+          if [ "$PREV_CLIENT" != "none" ] && [ -n "$PREV_CLIENT" ]; then
+            PREV_CLIENT_REPO=$(echo "$PREV_CLIENT" | rev | cut -d: -f2- | rev)
+            PREV_CLIENT_TAG=$(echo "$PREV_CLIENT" | rev | cut -d: -f1 | rev)
+            export DHIS2_CERT_CLIENT_IMAGE="$PREV_CLIENT_REPO"
+            export CLIENT_TAG="$PREV_CLIENT_TAG"
+          fi
+
+          docker compose -f compose.yaml -f compose.prod.yaml pull dhis2-cert-api dhis2-cert-client
+          docker compose -f compose.yaml -f compose.prod.yaml up -d --no-deps --force-recreate dhis2-cert-api dhis2-cert-client
+
+      - name: Verify rollback
+        working-directory: ${{ env.APP_DIR }}
+        run: timeout 60 bash -c 'until docker compose -f compose.yaml -f compose.prod.yaml exec -T dhis2-cert-api wget --spider -q http://localhost:${{ vars.PORT }}/health/live; do sleep 3; done'
+
+      - name: Rollback summary
+        if: always()
+        run: |
+          echo "========================================"
+          echo "ROLLBACK EXECUTED"
+          echo "========================================"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Failed tags: API=${{ inputs.api-tag }} Client=${{ inputs.client-tag }}"
+          echo "Please investigate before retrying."
