@@ -7,6 +7,39 @@ DHIS2 certification assessments and W3C Verifiable Credential issuance.
 - Docker and Docker Compose v2+
 - Node.js 24+ (for running tests or scripts outside Docker)
 
+### Architecture
+```mermaid
+graph TB
+    User([User / Assessor / Admin])
+    Public([Public Verifier])
+
+    subgraph Traefik["Traefik (TLS + Routing)"]
+        direction LR
+        R1["Host + PathPrefix /api/v1, /health → API"]
+        R2["Host + catch-all → Client"]
+    end
+
+    subgraph App["Application"]
+        Client["Client<br/>React + nginx"]
+        API["API<br/>NestJS"]
+    end
+
+    subgraph Data["Data Stores"]
+        DB[(PostgreSQL)]
+        Redis[(Redis)]
+    end
+
+    Vault["OpenBao Vault<br/>(optional)"]
+
+    User --> Traefik
+    Public --> Traefik
+    Traefik --> Client
+    Traefik --> API
+    API --> DB
+    API --> Redis
+    API --> Vault
+```
+
 ## Development Setup
 
 ### 1. Create `.env`
