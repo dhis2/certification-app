@@ -4,24 +4,30 @@ services:
   dhis2-cert-api:
     cap_drop:
       - ALL
-    pids_limit: 256
     read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
       - /tmp
       - /app/logs
+    deploy:
+      resources:
+        limits:
+          pids: 256
 
   dhis2-cert-client:
     cap_drop:
       - ALL
-    pids_limit: 128
     read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
       - /tmp
       - /var/cache/nginx
+    deploy:
+      resources:
+        limits:
+          pids: 128
 
   dhis2-cert-db:
     cap_add:
