@@ -295,7 +295,7 @@ export class MetricsService implements OnModuleInit {
       this.lastHourlyReset = now;
     }
 
-    let auditLogIntegrityValid = true;
+    let auditLogIntegrityValid: boolean;
     try {
       const lastEntry = await this.auditLogRepo.findOne({
         where: {},

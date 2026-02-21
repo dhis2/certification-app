@@ -40,6 +40,7 @@ export class CanonicalizationService {
       this.logger.error('RDFC-1.0 canonicalization failed', error);
       throw new Error(
         `Canonicalization failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { cause: error },
       );
     }
   }

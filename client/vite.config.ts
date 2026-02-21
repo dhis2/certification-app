@@ -5,6 +5,9 @@ import { defineConfig } from 'vite'
 export default defineConfig({
     build: {
         outDir: 'build',
+        rollupOptions: {
+            external: ['@dhis2/app-runtime'],
+        },
     },
     server: {
         hmr: {

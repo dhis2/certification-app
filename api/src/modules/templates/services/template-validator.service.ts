@@ -39,7 +39,9 @@ export class TemplateValidatorService {
       this.logger.log('Template schema loaded successfully');
     } catch (error) {
       this.logger.error('Failed to load template schema', error);
-      throw new Error(`Failed to load template schema: ${String(error)}`);
+      throw new Error(`Failed to load template schema: ${String(error)}`, {
+        cause: error,
+      });
     }
   }
 

@@ -85,7 +85,7 @@ export class KeyManagementService implements OnModuleInit {
       );
     } catch (error) {
       this.logger.error('Failed to load signing keys', error);
-      throw new Error('Failed to load signing keys');
+      throw new Error('Failed to load signing keys', { cause: error });
     }
   }
 
@@ -115,7 +115,9 @@ export class KeyManagementService implements OnModuleInit {
       );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new Error(`Private key file not found: ${keyPath}`);
+        throw new Error(`Private key file not found: ${keyPath}`, {
+          cause: error,
+        });
       }
       throw error;
     }
