@@ -30,9 +30,7 @@ test.describe('Smoke Tests', () => {
         await page.goto('/')
         await page.waitForLoadState('domcontentloaded')
 
-        const criticalErrors = errors.filter(
-            (e) => !e.includes('401') && !e.includes('Unauthorized') && !e.includes('Network'),
-        )
+        const criticalErrors = errors.filter((e) => !e.includes('401') && !e.includes('Unauthorized') && !e.includes('Network'))
 
         expect(criticalErrors).toHaveLength(0)
     })
@@ -65,7 +63,7 @@ test.describe('Public Routes', () => {
             page
                 .getByRole('heading')
                 .first()
-                .or(page.getByText(/certificate|verification|verify/i).first()),
+                .or(page.getByText(/certificate|verification|verify/i).first())
         ).toBeVisible()
     })
 })

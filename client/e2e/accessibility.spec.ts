@@ -69,7 +69,10 @@ test.describe('Accessibility', () => {
             await newButton.click()
             await adminPage.waitForURL(/\/assessments\/new/, { timeout: 10000 })
 
-            const hasForm = await adminPage.locator('form').isVisible().catch(() => false)
+            const hasForm = await adminPage
+                .locator('form')
+                .isVisible()
+                .catch(() => false)
             const hasHeading = await adminPage
                 .getByRole('heading', { name: /new assessment/i })
                 .isVisible()

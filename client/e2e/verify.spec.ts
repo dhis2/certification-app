@@ -21,9 +21,7 @@ test.describe('Certificate Verification (Public)', () => {
             const verifyPage = new VerifyCertificatePage(page)
             await verifyPage.goto('some-code')
 
-            await expect(
-                verifyPage.footer.or(page.locator('main, [class*="container"]')),
-            ).toBeVisible()
+            await expect(verifyPage.footer.or(page.locator('main, [class*="container"]'))).toBeVisible()
         })
     })
 
@@ -36,7 +34,10 @@ test.describe('Certificate Verification (Public)', () => {
                 await verifyPage.goto(code)
 
                 await expect(
-                    page.getByText(/error|not found|invalid/i).first().or(page.getByRole('heading').first()),
+                    page
+                        .getByText(/error|not found|invalid/i)
+                        .first()
+                        .or(page.getByRole('heading').first())
                 ).toBeVisible()
             })
         }
@@ -100,7 +101,10 @@ test.describe('Certificate Verification (Public)', () => {
             await verifyPage.goto('test-code')
 
             await expect(
-                page.getByText(/valid|invalid|error|verified|not found/i).first().or(page.getByRole('heading').first()),
+                page
+                    .getByText(/valid|invalid|error|verified|not found/i)
+                    .first()
+                    .or(page.getByRole('heading').first())
             ).toBeVisible()
         })
     })

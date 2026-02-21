@@ -16,9 +16,18 @@ test.describe('Admin Features', () => {
             await dashboard.goto()
             await dashboard.navigateTo('users')
 
-            const hasTable = await adminPage.locator('table').isVisible().catch(() => false)
-            const hasEmptyState = await adminPage.locator('[class*="emptyState"]').isVisible().catch(() => false)
-            const hasLoading = await adminPage.locator('[class*="loading"]').isVisible().catch(() => false)
+            const hasTable = await adminPage
+                .locator('table')
+                .isVisible()
+                .catch(() => false)
+            const hasEmptyState = await adminPage
+                .locator('[class*="emptyState"]')
+                .isVisible()
+                .catch(() => false)
+            const hasLoading = await adminPage
+                .locator('[class*="loading"]')
+                .isVisible()
+                .catch(() => false)
 
             expect(hasTable || hasEmptyState || hasLoading).toBe(true)
         })
@@ -28,9 +37,7 @@ test.describe('Admin Features', () => {
             await dashboard.goto()
             await dashboard.navigateTo('users')
 
-            await expect(
-                adminPage.getByRole('button', { name: /create|add user|new user/i }),
-            ).toBeVisible()
+            await expect(adminPage.getByRole('button', { name: /create|add user|new user/i })).toBeVisible()
         })
     })
 
@@ -87,7 +94,11 @@ test.describe('Admin Features', () => {
             await dashboard.navigateTo('monitoring')
 
             // Alerts may or may not be present
-            const hasAlerts = await adminPage.getByText(/alert/i).first().isVisible().catch(() => false)
+            const hasAlerts = await adminPage
+                .getByText(/alert/i)
+                .first()
+                .isVisible()
+                .catch(() => false)
             expect(hasAlerts === true || hasAlerts === false).toBe(true)
         })
     })
@@ -106,9 +117,7 @@ test.describe('Admin Features', () => {
             await dashboard.goto()
             await dashboard.navigateTo('audit')
 
-            await expect(
-                adminPage.locator('table').or(adminPage.getByText(/no audit log entries|no entries found|no logs/i)),
-            ).toBeVisible({ timeout: 15000 })
+            await expect(adminPage.locator('table').or(adminPage.getByText(/no audit log entries|no entries found|no logs/i))).toBeVisible({ timeout: 15000 })
         })
 
         test('should have filter options', async ({ adminPage }) => {

@@ -72,7 +72,11 @@ export class PasswordResetTokenStorage {
             if (parsed.userId === userId) {
               await client.del(key);
             }
-          } catch {}
+          } catch {
+            this.logger.debug(
+              `Skipping malformed password reset token during cleanup for user ${userId}`,
+            );
+          }
         }
       }
     } while (cursor !== '0');

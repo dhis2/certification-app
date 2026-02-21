@@ -93,8 +93,14 @@ export class AuditRetentionService implements OnModuleInit {
 
   private parseIntWithDefault(value: unknown, defaultValue: number): number {
     if (value === undefined || value === null) return defaultValue;
-    const parsed = typeof value === 'number' ? value : parseInt(String(value), 10);
-    return Number.isFinite(parsed) ? parsed : defaultValue;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : defaultValue;
+    }
+    if (typeof value === 'string') {
+      const parsed = parseInt(value, 10);
+      return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+    return defaultValue;
   }
 
   onModuleInit(): void {
@@ -121,7 +127,8 @@ export class AuditRetentionService implements OnModuleInit {
   }
 
   calculateArchiveDate(entry: Pick<AuditLog, 'eventType' | 'createdAt'>): Date {
-    const createdAt = entry.createdAt instanceof Date ? entry.createdAt : new Date();
+    const createdAt =
+      entry.createdAt instanceof Date ? entry.createdAt : new Date();
 
     let retentionDays: number;
     if (SECURITY_EVENT_TYPES.includes(entry.eventType)) {
