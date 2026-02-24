@@ -39,8 +39,8 @@ services:
 
       - --certificatesresolvers.le.acme.email=${EMAIL?Variable not set}
       - --certificatesresolvers.le.acme.storage=/certificates/acme.json
-      - --certificatesresolvers.le.acme.dnschallenge=true
-      - --certificatesresolvers.le.acme.dnschallenge.provider=route53
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=http
 
       - --entrypoints.http.http.redirections.entrypoint.to=https
       - --entrypoints.http.http.redirections.entrypoint.scheme=https
@@ -51,11 +51,6 @@ services:
       - --api
     networks:
       - traefik-public
-    environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID?Variable not set}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY?Variable not set}
-      - AWS_REGION=${AWS_REGION?Variable not set}
-      - AWS_HOSTED_ZONE_ID=${AWS_HOSTED_ZONE_ID?Variable not set}
 
 volumes:
   traefik-certificates:
