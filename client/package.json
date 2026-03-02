@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@dhis2/app-service-alerts": "^3.16.0",
-        "@dhis2/ui": "^10.12.8",
+        "@dhis2/ui": "^10.12.11",
         "@fontsource/roboto": "^5.1.0",
         "axios": "^1.13.5",
         "axios-hooks": "^5.1.1",
