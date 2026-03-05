@@ -186,7 +186,7 @@ jobs:
         run: cosign sign --yes ${{ env.API_IMAGE }}@${{ steps.build.outputs.digest }}
 
       - name: Attest provenance
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ${{ env.API_IMAGE }}
           subject-digest: ${{ steps.build.outputs.digest }}
@@ -241,7 +241,7 @@ jobs:
         run: cosign sign --yes ${{ env.CLIENT_IMAGE }}@${{ steps.build.outputs.digest }}
 
       - name: Attest provenance
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ${{ env.CLIENT_IMAGE }}
           subject-digest: ${{ steps.build.outputs.digest }}
@@ -263,7 +263,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Scan API image
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
         with:
           image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api.outputs.digest }}
           format: table
@@ -271,7 +271,7 @@ jobs:
           exit-code: "1"
 
       - name: Scan Client image
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
         with:
           image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client.outputs.digest }}
           format: table
