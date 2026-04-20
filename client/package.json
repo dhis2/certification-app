@@ -18,8 +18,8 @@
         "format:check": "prettier --check ."
     },
     "dependencies": {
-        "@dhis2/app-service-alerts": "^3.16.0",
-        "@dhis2/ui": "^10.12.11",
+        "@dhis2/app-service-alerts": "^3.17.0",
+        "@dhis2/ui": "^10.13.0",
         "@fontsource/roboto": "^5.2.10",
         "axios": "^1.13.6",
         "axios-hooks": "^5.1.1",
