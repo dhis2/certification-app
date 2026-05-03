@@ -1,14 +1,14 @@
-FROM node:24.13.0-alpine3.23 AS build
+FROM node@sha256:f587a14b20e59fa6706b0bd82ef3ee330fd4c49f6372e37ed4920d0b6874e4ec AS base
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json yarn.lock ./
 
-RUN npm ci && npm cache clean --force
+RUN yarn install --frozen-lockfile && yarn cache clean
 
 COPY . .
 
-RUN npm run build
+RUN yarn build
 
 FROM nginx:1.28.0-alpine3.21 AS runtime
 
@@ -26,13 +26,13 @@ USER app
 
 CMD ["nginx", "-g", "daemon off;"]
 
-FROM node:24.13.0-alpine3.23 AS dev
+FROM node@sha256:f587a14b20e59fa6706b0bd82ef3ee330fd4c49f6372e37ed4920d0b6874e4ec AS dev
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json yarn.lock ./
 
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 EXPOSE 3000 24678
 
