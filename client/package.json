@@ -32,7 +32,7 @@
         "react-router": "^6.28.1",
         "react-router-dom": "^6.26.2",
         "styled-jsx": "5.1.7",
-        "yaml": "^2.8.2"
+        "yaml": "^2.8.4"
     },
     "browserslist": {
         "production": [
