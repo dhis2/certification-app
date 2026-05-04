@@ -1,4 +1,4 @@
-FROM node:24.13.0-alpine3.23 AS base
+FROM node@sha256:f587a14b20e59fa6706b0bd82ef3ee330fd4c49f6372e37ed4920d0b6874e4ec AS base
 
 RUN apk add --no-cache dumb-init
 
