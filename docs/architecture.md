@@ -234,12 +234,7 @@ sequenceDiagram
     CertSvc-->>Admin: Certificate with verificationCode
 ```
 
-**Public verification:** `GET /api/v1/verify/:code` and related verify routes — **no auth**. Response `valid` reflects registry state: row exists, `!isRevoked`, and current date within `validFrom`–`validUntil`.
-
-**Revocation:** Admin revokes via API; row updated with `isRevoked`, timestamps, reason. `AuditService` records `CERTIFICATE_REVOKED`. Verification can log `CERTIFICATE_VERIFIED` as implemented in the service.
-
-**Vault:** When enabled, transit APIs may be used for **encryption/signing of non-certificate payloads** (for example OTP secrets). They are **not** used to build or verify W3C credentials for certificates.
-
+**Vault:** When enabled, transit APIs may be used for **encryption/signing of non-certificate payloads** (for example OTP secrets). 
 ---
 
 ## Audit and tamper evidence
