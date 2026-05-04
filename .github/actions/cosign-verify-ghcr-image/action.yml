@@ -1,0 +1,59 @@
+name: Cosign verify GHCR image
+description: >-
+  Verify a GHCR image tag was signed keyless from this repository's workflows.
+  Identity is constrained to ^https://github.com/<owner>/<repo>/\.github/workflows/.*
+inputs:
+  registry:
+    description: Registry host (GHCR)
+    required: false
+    default: ghcr.io
+  tag:
+    description: Image tag to verify (e.g. latest, v1.2.3, sha-abc1234)
+    required: true
+  image-suffix:
+    description: >-
+      Optional path after the repository name (e.g. /api, /client). Use for
+      multi-image repos; leave empty when the image is ghcr.io/<owner>/<repo>:<tag>.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Install cosign
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+    - name: Verify image signature
+      shell: bash
+      env:
+        REGISTRY_INPUT: ${{ inputs.registry }}
+        TAG_INPUT: ${{ inputs.tag }}
+        IMAGE_SUFFIX_RAW: ${{ inputs['image-suffix'] }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${TAG_INPUT}" ]; then
+          echo "cosign-verify: input tag is empty" >&2
+          exit 1
+        fi
+
+        if ! command -v python3 >/dev/null 2>&1; then
+          echo "cosign-verify: python3 required" >&2
+          exit 1
+        fi
+
+        REPO_LC=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+        suffix="${IMAGE_SUFFIX_RAW:-}"
+        if [ -n "${suffix}" ] && [ "${suffix#/}" = "${suffix}" ]; then
+          suffix="/${suffix}"
+        fi
+        IMAGE_REF="${REGISTRY_INPUT}/${REPO_LC}${suffix}:${TAG_INPUT}"
+
+        RE_ESC="$(python3 -c "import re, sys; print(re.escape(sys.argv[1]))" "${GITHUB_REPOSITORY}")"
+        IDENTITY_RE="^https://github.com/${RE_ESC}/\\.github/workflows/.*"
+
+        echo "Verifying cosign signature for: ${IMAGE_REF}"
+        cosign verify "${IMAGE_REF}" \
+          --certificate-identity-regexp "${IDENTITY_RE}" \
+          --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
+
+        echo "cosign verify succeeded for ${IMAGE_REF}"
