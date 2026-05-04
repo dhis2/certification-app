@@ -12,6 +12,7 @@ export {
   TemplateResponseDto,
   CategoryResponseDto,
   CriterionResponseDto,
+  ComplianceStatusScoringDto,
   TemplateListResponseDto,
 } from './template-response.dto';
 export {

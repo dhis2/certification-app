@@ -121,24 +121,31 @@ describe('ImplementationsController', () => {
   });
 
   describe('findAll', () => {
+    const toConnection = (nodes: Implementation[]) => ({
+      edges: nodes.map((n) => ({ node: n, cursor: n.id })),
+      pageInfo: { hasNextPage: false, endCursor: null as string | null },
+      totalCount: nodes.length,
+    });
+
     const mockImplementations = [
       mockImplementation,
       { ...mockImplementation, id: 'impl-2', name: 'Implementation B' },
-    ];
+    ] as Implementation[];
 
-    it('should return all implementations as response DTOs', async () => {
-      service.findAll.mockResolvedValue(mockImplementations);
+    it('should return paginated implementations as response DTO edges', async () => {
+      service.findAll.mockResolvedValue(toConnection(mockImplementations));
 
       const result = await controller.findAll();
 
       expect(service.findAll).toHaveBeenCalledWith({});
-      expect(result).toHaveLength(2);
-      expect(result[0]).toBeInstanceOf(ImplementationResponseDto);
-      expect(result[0].id).toBe(mockImplementationId);
+      expect(result.edges).toHaveLength(2);
+      expect(result.totalCount).toBe(2);
+      expect(result.edges[0].node).toBeInstanceOf(ImplementationResponseDto);
+      expect(result.edges[0].node.id).toBe(mockImplementationId);
     });
 
     it('should pass isActive filter when provided', async () => {
-      service.findAll.mockResolvedValue([mockImplementation]);
+      service.findAll.mockResolvedValue(toConnection([mockImplementation]));
 
       await controller.findAll(true);
 
@@ -146,21 +153,25 @@ describe('ImplementationsController', () => {
     });
 
     it('should pass isActive=false when explicitly set', async () => {
-      const inactiveImplementation = { ...mockImplementation, isActive: false };
-      service.findAll.mockResolvedValue([inactiveImplementation]);
+      const inactiveImplementation = {
+        ...mockImplementation,
+        isActive: false,
+      } as Implementation;
+      service.findAll.mockResolvedValue(toConnection([inactiveImplementation]));
 
       const result = await controller.findAll(false);
 
       expect(service.findAll).toHaveBeenCalledWith({ isActive: false });
-      expect(result[0].isActive).toBe(false);
+      expect(result.edges[0].node.isActive).toBe(false);
     });
 
-    it('should return empty array when no implementations found', async () => {
-      service.findAll.mockResolvedValue([]);
+    it('should return empty edges when no implementations found', async () => {
+      service.findAll.mockResolvedValue(toConnection([]));
 
       const result = await controller.findAll();
 
-      expect(result).toEqual([]);
+      expect(result.edges).toEqual([]);
+      expect(result.totalCount).toBe(0);
     });
   });
 
@@ -189,7 +200,10 @@ describe('ImplementationsController', () => {
     });
 
     it('should return implementation regardless of isActive status', async () => {
-      const inactiveImplementation = { ...mockImplementation, isActive: false };
+      const inactiveImplementation = {
+        ...mockImplementation,
+        isActive: false,
+      } as Implementation;
       service.findOne.mockResolvedValue(inactiveImplementation);
 
       const result = await controller.findOne(mockImplementationId);

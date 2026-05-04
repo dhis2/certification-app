@@ -15,30 +15,28 @@ describe('Verification Validators', () => {
     });
 
     describe('valid verification codes', () => {
-      it('should accept valid base64url verification code', () => {
-        // Generate real verification code like the app does
-        const code = crypto.randomBytes(8).toString('base64url');
-        expect(constraint.validate(code)).toBe(true);
+      function randomBase32Code12(): string {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        return Array.from(crypto.randomBytes(12), (b) => alphabet[b % 32]).join(
+          '',
+        );
+      }
+
+      it('should accept 12-character RFC4648 base32 codes', () => {
+        expect(constraint.validate(randomBase32Code12())).toBe(true);
       });
 
-      it('should accept exactly 11 character base64url strings', () => {
+      it('should accept fixed valid samples', () => {
         const validCodes = [
-          'ABCDEFGHIJK', // All uppercase
-          'abcdefghijk', // All lowercase
-          '01234567890', // All digits (11 chars starting with 0)
-          'Abc123-_XYZ', // Mixed with special chars
-          'aaaaaaaaaaA', // Repeated chars
+          'ABCDEFGHIJKL',
+          'AAAAAAAAAAAA',
+          '222222222222',
+          'ZZZZZZZZZZZZ',
         ];
 
         for (const code of validCodes) {
           expect(constraint.validate(code)).toBe(true);
         }
-      });
-
-      it('should accept codes with hyphen and underscore (base64url)', () => {
-        expect(constraint.validate('abc-def_123')).toBe(true);
-        expect(constraint.validate('-----------')).toBe(true);
-        expect(constraint.validate('___________')).toBe(true);
       });
     });
 
@@ -46,45 +44,39 @@ describe('Verification Validators', () => {
       it('should reject codes with wrong length', () => {
         expect(constraint.validate('')).toBe(false);
         expect(constraint.validate('short')).toBe(false);
-        expect(constraint.validate('exactly10c')).toBe(false); // 10 chars
-        expect(constraint.validate('toolongcode1')).toBe(false); // 12 chars
-        expect(constraint.validate('waytoolongcodestring')).toBe(false); // 20 chars
+        expect(constraint.validate('ABCDEFGHIJK')).toBe(false);
+        expect(constraint.validate('ABCDEFGHIJKLM')).toBe(false);
       });
 
       it('should reject codes with invalid characters', () => {
-        // Standard base64 chars + and / are NOT valid in base64url
-        expect(constraint.validate('abc+def/123')).toBe(false);
-        expect(constraint.validate('abc=def=123')).toBe(false);
-        // Other invalid chars
-        expect(constraint.validate('abc def 123')).toBe(false);
-        expect(constraint.validate('abc!def@123')).toBe(false);
-        expect(constraint.validate('abc#def$123')).toBe(false);
+        expect(constraint.validate('abcdefghijkl')).toBe(false);
+        expect(constraint.validate('000000000000')).toBe(false);
+        expect(constraint.validate('111111111111')).toBe(false);
+        expect(constraint.validate('ABCDEFGHIJK1')).toBe(false);
       });
 
       it('should reject non-string values', () => {
         expect(constraint.validate(null)).toBe(false);
         expect(constraint.validate(undefined)).toBe(false);
-        expect(constraint.validate(12345678901)).toBe(false);
+        expect(constraint.validate(123456789012)).toBe(false);
         expect(constraint.validate({ code: 'test' })).toBe(false);
         expect(constraint.validate(['a', 'b', 'c'])).toBe(false);
       });
 
       it('should reject codes with unicode characters', () => {
-        expect(constraint.validate('abcdefghijé')).toBe(false);
-        expect(constraint.validate('abc日本語defg')).toBe(false);
+        expect(constraint.validate('ABC日本語DEFGHIJ')).toBe(false);
         expect(constraint.validate('🔐🔐🔐🔐🔐🔐')).toBe(false);
       });
 
       it('should reject SQL injection attempts', () => {
-        expect(constraint.validate("'; DROP--11")).toBe(false);
+        expect(constraint.validate("';DROP--ABCD")).toBe(false);
         expect(constraint.validate("1' OR '1'='1")).toBe(false);
         expect(constraint.validate('1; SELECT *')).toBe(false);
       });
 
       it('should reject null bytes and control characters', () => {
-        expect(constraint.validate('abc\x00def1234')).toBe(false);
-        expect(constraint.validate('abc\x0adef1234')).toBe(false);
-        expect(constraint.validate('abc\x0ddef1234')).toBe(false);
+        expect(constraint.validate('ABC\x00DEFGHIJKL')).toBe(false);
+        expect(constraint.validate('ABCD\x0AEFGHIJKL')).toBe(false);
       });
     });
 
@@ -191,11 +183,10 @@ describe('Verification Validators', () => {
 
   describe('isValidVerificationCode utility', () => {
     it('should work as a type guard', () => {
-      const code: unknown = crypto.randomBytes(8).toString('base64url');
+      const code: unknown = 'ABCDEFGHIJKL';
       if (isValidVerificationCode(code)) {
-        // TypeScript should recognize code as string here
         expect(typeof code).toBe('string');
-        expect(code.length).toBe(11);
+        expect(code.length).toBe(12);
       }
     });
 

@@ -24,18 +24,6 @@ const envSchema = z.object({
 
   // Application configuration
   APP_BASE_URL: z.string().url().optional(),
-  ISSUER_DID: z.string().optional(),
-  ISSUER_NAME: z.string().optional(),
-
-  // Signing key configuration
-  SIGNING_KEY_PATH: z.string().optional(),
-  SIGNING_PUBLIC_KEY_PATH: z.string().optional(),
-  SIGNING_KEY_PASSPHRASE: z.string().optional(),
-  SIGNING_KEY_VERSION: z.coerce.number().optional(),
-
-  // Key rotation
-  KEY_ROTATION_WARNING_DAYS: z.coerce.number().default(30),
-  KEY_MAX_AGE_DAYS: z.coerce.number().default(365),
 
   // Upload configuration
   UPLOAD_DIR: z.string().default('./uploads'),
@@ -61,15 +49,6 @@ const envSchema = z.object({
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_PASSWORD: z.string().optional(),
-
-  // Vault / OpenBao configuration
-  USE_VAULT: z.coerce.boolean().default(false),
-  VAULT_ADDR: z.string().url().optional(),
-  VAULT_ROLE_ID: z.string().optional(),
-  VAULT_SECRET_ID: z.string().optional(),
-
-  // Status list cache
-  STATUS_LIST_CACHE_TTL: z.coerce.number().default(300), // 5 minutes default
 
   // Audit log HMAC key (base64-encoded, 256+ bits recommended)
   AUDIT_LOG_HMAC_KEY: z.string().optional(),
@@ -106,7 +85,6 @@ function validateProductionSecrets(
 ): ProductionValidationError[] {
   const errors: ProductionValidationError[] = [];
 
-  // JWT Secret (OWASP Session Management)
   if (!config.JWT_SECRET) {
     errors.push({
       field: 'JWT_SECRET',
@@ -122,13 +100,12 @@ function validateProductionSecrets(
     });
   }
 
-  // Application Base URL (required for credential issuance)
   if (!config.APP_BASE_URL) {
     errors.push({
       field: 'APP_BASE_URL',
       message:
-        'APP_BASE_URL must be set in production for proper credential issuance',
-      reference: 'W3C Verifiable Credentials Data Model',
+        'APP_BASE_URL must be set in production for public links and integrations',
+      reference: 'OWASP Secure Configuration',
     });
   } else if (!config.APP_BASE_URL.startsWith('https://')) {
     errors.push({
@@ -138,74 +115,6 @@ function validateProductionSecrets(
     });
   }
 
-  // Issuer DID (required for W3C VC compliance)
-  if (!config.ISSUER_DID) {
-    errors.push({
-      field: 'ISSUER_DID',
-      message:
-        'ISSUER_DID must be set in production for W3C Verifiable Credentials',
-      reference: 'W3C DID Core Specification',
-    });
-  } else if (
-    !config.ISSUER_DID.startsWith('did:web:') &&
-    !config.ISSUER_DID.startsWith('did:key:')
-  ) {
-    errors.push({
-      field: 'ISSUER_DID',
-      message:
-        'ISSUER_DID should use did:web: or did:key: method in production',
-      reference: 'W3C DID Core Specification',
-    });
-  }
-
-  // Vault-managed secrets (signing keys, encryption, HMAC)
-  if (config.USE_VAULT) {
-    if (!config.VAULT_ADDR) {
-      errors.push({
-        field: 'VAULT_ADDR',
-        message: 'VAULT_ADDR must be set when USE_VAULT is true',
-        reference: 'OpenBao/Vault Configuration',
-      });
-    } else if (!config.VAULT_ADDR.startsWith('https://')) {
-      errors.push({
-        field: 'VAULT_ADDR',
-        message:
-          'VAULT_ADDR must use HTTPS in production (TLS required per NIST SP 800-52)',
-        reference: 'NIST SP 800-52 Rev. 2',
-      });
-    }
-    if (!config.VAULT_ROLE_ID || !config.VAULT_SECRET_ID) {
-      errors.push({
-        field: 'VAULT_ROLE_ID / VAULT_SECRET_ID',
-        message:
-          'VAULT_ROLE_ID and VAULT_SECRET_ID must be set for AppRole auth in production',
-        reference: 'OpenBao/Vault AppRole Auth',
-      });
-    }
-  }
-
-  // Signing Keys (NIST SP 800-57) — required only when not using Vault
-  if (!config.USE_VAULT) {
-    if (!config.SIGNING_KEY_PATH || !config.SIGNING_PUBLIC_KEY_PATH) {
-      errors.push({
-        field: 'SIGNING_KEY_PATH / SIGNING_PUBLIC_KEY_PATH',
-        message:
-          'Signing keys must be configured in production (SIGNING_KEY_PATH and SIGNING_PUBLIC_KEY_PATH)',
-        reference: 'NIST SP 800-57 Key Management',
-      });
-    }
-
-    if (config.SIGNING_KEY_PATH && !config.SIGNING_KEY_PASSPHRASE) {
-      errors.push({
-        field: 'SIGNING_KEY_PASSPHRASE',
-        message:
-          'Signing key passphrase should be set when using file-based keys',
-        reference: 'NIST SP 800-57 Key Management',
-      });
-    }
-  }
-
-  // Database Security (OWASP Database Security)
   if (config.DB_PASSWORD === 'postgres' || config.DB_PASSWORD === '') {
     errors.push({
       field: 'DB_PASSWORD',
@@ -223,7 +132,6 @@ function validateProductionSecrets(
     });
   }
 
-  // Mail Configuration (if enabled)
   if (config.MAIL_ENABLED) {
     if (!config.MAIL_HOST) {
       errors.push({
@@ -249,15 +157,14 @@ function validateProductionSecrets(
     }
   }
 
-  // Audit Log HMAC Key (NIST SP 800-92) — required only when not using Vault
-  if (!config.AUDIT_LOG_HMAC_KEY && !config.USE_VAULT) {
+  if (!config.AUDIT_LOG_HMAC_KEY) {
     errors.push({
       field: 'AUDIT_LOG_HMAC_KEY',
       message:
         'AUDIT_LOG_HMAC_KEY must be set in production for audit log integrity (base64-encoded, 256+ bits)',
       reference: 'NIST SP 800-92 - Guide to Computer Security Log Management',
     });
-  } else if (config.AUDIT_LOG_HMAC_KEY) {
+  } else {
     try {
       const keyBytes = Buffer.from(config.AUDIT_LOG_HMAC_KEY, 'base64');
       if (keyBytes.length < 32) {
@@ -278,7 +185,6 @@ function validateProductionSecrets(
     }
   }
 
-  // Audit retention policy validation
   if (config.AUDIT_RETENTION_DEFAULT_DAYS < 90) {
     errors.push({
       field: 'AUDIT_RETENTION_DEFAULT_DAYS',
@@ -296,21 +202,12 @@ function validateStagingSecrets(
 ): ProductionValidationError[] {
   const errors: ProductionValidationError[] = [];
 
-  // JWT Secret is required in staging
   if (!config.JWT_SECRET) {
     errors.push({
       field: 'JWT_SECRET',
       message: 'JWT_SECRET must be set in staging environment',
       reference: 'OWASP Session Management',
     });
-  }
-
-  // Signing keys should be configured in staging
-  if (!config.SIGNING_KEY_PATH || !config.SIGNING_PUBLIC_KEY_PATH) {
-    console.warn(
-      '[EnvValidation] WARNING: Signing keys not configured in staging. ' +
-        'Using ephemeral keys which is not recommended.',
-    );
   }
 
   return errors;
@@ -330,7 +227,6 @@ export function envValidationSchema(
 
   const data = result.data;
 
-  // Production environment validation
   if (data.NODE_ENV === 'production') {
     const productionErrors = validateProductionSecrets(data);
 
@@ -357,7 +253,6 @@ export function envValidationSchema(
     console.log('[EnvValidation] Production secrets validation passed');
   }
 
-  // Staging environment validation
   if (data.NODE_ENV === 'staging') {
     const stagingErrors = validateStagingSecrets(data);
 
@@ -368,16 +263,6 @@ export function envValidationSchema(
       }
       throw new Error(
         `Staging configuration invalid: ${stagingErrors.length.toString()} issue(s) found.`,
-      );
-    }
-  }
-
-  // Development environment warnings
-  if (data.NODE_ENV === 'development') {
-    if (!data.SIGNING_KEY_PATH) {
-      console.warn(
-        '[EnvValidation] Development mode: Using ephemeral signing keys. ' +
-          'Certificates will not persist across restarts.',
       );
     }
   }

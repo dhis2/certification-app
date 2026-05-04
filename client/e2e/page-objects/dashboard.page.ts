@@ -24,7 +24,6 @@ export class DashboardPage extends BasePage {
     readonly certificatesNav: Locator
     readonly monitoringNav: Locator
     readonly auditNav: Locator
-    readonly keysNav: Locator
     readonly settingsNav: Locator
     readonly logoutButton: Locator
 
@@ -53,7 +52,6 @@ export class DashboardPage extends BasePage {
         this.certificatesNav = page.locator('nav a[href="/admin/certificates"]')
         this.monitoringNav = page.locator('nav a[href="/admin/monitoring"]')
         this.auditNav = page.locator('nav a[href="/admin/audit"]')
-        this.keysNav = page.locator('nav a[href="/admin/keys"]')
         this.settingsNav = page.locator('nav a[href="/settings"]')
         this.logoutButton = page.getByRole('button', { name: /logout|sign out/i })
     }
@@ -87,7 +85,7 @@ export class DashboardPage extends BasePage {
         return templatesVisible && usersVisible
     }
 
-    async navigateTo(destination: 'implementations' | 'assessments' | 'templates' | 'users' | 'certificates' | 'monitoring' | 'audit' | 'keys' | 'settings'): Promise<void> {
+    async navigateTo(destination: 'implementations' | 'assessments' | 'templates' | 'users' | 'certificates' | 'monitoring' | 'audit' | 'settings'): Promise<void> {
         const navMap = {
             implementations: this.implementationsNav,
             assessments: this.assessmentsNav,
@@ -96,7 +94,6 @@ export class DashboardPage extends BasePage {
             certificates: this.certificatesNav,
             monitoring: this.monitoringNav,
             audit: this.auditNav,
-            keys: this.keysNav,
             settings: this.settingsNav,
         }
 

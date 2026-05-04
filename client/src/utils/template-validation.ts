@@ -16,6 +16,7 @@ export const DEFAULT_TEMPLATE_LIMITS: TemplateConfig = {
     maxEvidenceDescriptionLength: 1000,
     maxVerificationMethodLength: 4000,
     maxCisMappingLength: 50,
+    maxJustificationLength: 8000,
     maxFilenameLength: 255,
 }
 

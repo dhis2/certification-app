@@ -6,6 +6,7 @@ export interface CriterionDefinition {
   description?: string;
   verificationMethod?: string;
   guidance?: string;
+  justification?: string | null;
   controlType: ControlType | 'technical' | 'organizational';
   controlGroup?: ControlGroup | 'DSCP1';
   isMandatory?: boolean;
@@ -26,6 +27,14 @@ export interface CategoryDefinition {
   criteria: CriterionDefinition[];
 }
 
+export interface ComplianceStatusScoringDefinition {
+  compliant: number;
+  partially_compliant: number;
+  non_compliant: number;
+  not_applicable: number | null;
+  not_tested: number;
+}
+
 export interface TemplateDefinition {
   name: string;
   version: number;
@@ -33,6 +42,7 @@ export interface TemplateDefinition {
   effectiveFrom?: string;
   effectiveTo?: string;
   categories: CategoryDefinition[];
+  complianceStatusScoring?: ComplianceStatusScoringDefinition;
 }
 
 export interface TemplateValidationError {

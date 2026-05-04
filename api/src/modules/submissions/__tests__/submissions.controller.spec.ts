@@ -31,6 +31,7 @@ describe('SubmissionsController', () => {
 
   const mockUserId = 'user-123';
   const mockSubmissionId = 'submission-123';
+  const mockImplementationId = 'implementation-123';
   const mockOrgId = 'org-123';
   const mockTemplateId = 'template-123';
 
@@ -633,23 +634,39 @@ describe('SubmissionsController', () => {
     });
   });
 
-  describe('list response pagination', () => {
-    it('should return correct page number', async () => {
-      mockService.findAll.mockResolvedValue([[], 0]);
+  describe('list response (cursor pagination)', () => {
+    it('should forward first and after to the service', async () => {
+      mockService.findAll.mockResolvedValue({
+        edges: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+        totalCount: 0,
+      });
 
-      const result = await controller.findAll(undefined, undefined, '3', '10');
+      await controller.findAll(undefined, undefined, '20', 'next-cursor');
 
-      expect(result.page).toBe(3);
-      expect(result.limit).toBe(10);
+      expect(mockService.findAll).toHaveBeenCalledWith({
+        implementationId: undefined,
+        status: undefined,
+        first: 20,
+        after: 'next-cursor',
+      });
     });
 
-    it('should default to page 1 and limit 20', async () => {
-      mockService.findAll.mockResolvedValue([[], 0]);
+    it('should default first and after to undefined when omitted', async () => {
+      mockService.findAll.mockResolvedValue({
+        edges: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+        totalCount: 0,
+      });
 
-      const result = await controller.findAll();
+      await controller.findAll();
 
-      expect(result.page).toBe(1);
-      expect(result.limit).toBe(20);
+      expect(mockService.findAll).toHaveBeenCalledWith({
+        implementationId: undefined,
+        status: undefined,
+        first: undefined,
+        after: undefined,
+      });
     });
   });
 

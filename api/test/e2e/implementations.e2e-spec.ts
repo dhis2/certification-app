@@ -400,10 +400,7 @@ describe('Implementations (e2e)', () => {
         },
       ];
       implementations.forEach((implementation) =>
-        implementations.set(
-          implementation.id,
-          implementation as Implementation,
-        ),
+        implementations.set(implementation.id, implementation),
       );
     });
 

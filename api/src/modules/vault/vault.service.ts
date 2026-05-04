@@ -143,7 +143,7 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
     const input = Buffer.from(data).toString('base64');
     const res = await this.vaultRequest<VaultTransitSignResponse>(
       'POST',
-      `/v1/transit/sign/${this.config.transitSigningKey}`,
+      `/v1/transit/sign/${this.config.transitKeyName}`,
       { input, marshaling_algorithm: 'asn1' },
     );
 
@@ -154,7 +154,7 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
   async transitGetPublicKey(): Promise<Uint8Array> {
     const res = await this.vaultRequest<VaultTransitKeyResponse>(
       'GET',
-      `/v1/transit/keys/${this.config.transitSigningKey}`,
+      `/v1/transit/keys/${this.config.transitKeyName}`,
     );
 
     const latestVersion = Object.keys(res.data.keys)

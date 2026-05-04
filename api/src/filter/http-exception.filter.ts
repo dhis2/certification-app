@@ -3,7 +3,6 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
-  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
@@ -74,9 +73,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const logMessage = `[${method}] ${url} - ${message} - ${userInfo}`;
 
-    if (status >= (HttpStatus.INTERNAL_SERVER_ERROR as number)) {
+    if (status >= 500) {
       this.logger.error(logMessage);
-    } else if (status >= (HttpStatus.BAD_REQUEST as number)) {
+    } else if (status >= 400) {
       this.logger.warn(logMessage);
     } else {
       this.logger.log(logMessage);

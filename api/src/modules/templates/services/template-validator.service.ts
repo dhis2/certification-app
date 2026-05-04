@@ -8,6 +8,7 @@ import {
   TemplateValidationResult,
   TemplateValidationError,
 } from '../interfaces/template-definition.interface';
+import { complianceScoringEquals } from '../constants/compliance-scoring';
 
 @Injectable()
 export class TemplateValidatorService {
@@ -72,6 +73,16 @@ export class TemplateValidatorService {
     definition: TemplateDefinition,
   ): TemplateValidationError[] {
     const errors: TemplateValidationError[] = [];
+
+    if (definition.complianceStatusScoring !== undefined) {
+      if (!complianceScoringEquals(definition.complianceStatusScoring)) {
+        errors.push({
+          path: '/complianceStatusScoring',
+          message:
+            'Must match canonical scoring: compliant=100, partially_compliant=50, non_compliant=0, not_applicable=null, not_tested=0',
+        });
+      }
+    }
 
     const totalWeight = definition.categories.reduce(
       (sum, cat) => sum + cat.weight,

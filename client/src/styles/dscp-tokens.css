@@ -1,0 +1,30 @@
+.dscp-surface {
+    --accent: var(--theme-valid);
+    --accent-dark: var(--theme-default);
+    --accent-alt: var(--theme-warning);
+    --border: color-mix(in srgb, var(--theme-default) 14%, transparent);
+    --soft: var(--colors-grey100);
+    --sans-head: var(--theme-fonts);
+    --sans-body: var(--theme-fonts);
+    --mono: ui-monospace, sfmono-regular, menlo, monaco, consolas, 'Courier New', monospace;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --dscp-fg: var(--colors-grey900);
+    --dscp-muted: var(--theme-disabled);
+    --dscp-ok: var(--colors-teal600);
+    --dscp-ok-soft: var(--colors-teal100);
+    --dscp-surface: var(--colors-white);
+    --fg: var(--dscp-fg);
+    --muted: var(--dscp-muted);
+    --bg: var(--dscp-surface);
+    --paper: var(--dscp-surface);
+    --dscp-pill-positive-bg: color-mix(in srgb, var(--theme-valid) 16%, var(--colors-white));
+    --dscp-pill-positive-border: color-mix(in srgb, var(--theme-valid) 35%, var(--colors-white));
+    --dscp-pill-positive-fg: var(--colors-blue800);
+    --dscp-pill-warning-bg: color-mix(in srgb, var(--theme-warning) 12%, var(--colors-white));
+    --dscp-pill-warning-border: color-mix(in srgb, var(--theme-warning) 35%, var(--colors-white));
+    --dscp-pill-warning-fg: var(--colors-yellow800);
+    --dscp-surface-warn: color-mix(in srgb, var(--theme-warning) 6%, var(--colors-white));
+    --dscp-border-warn: color-mix(in srgb, var(--theme-warning) 35%, var(--colors-white));
+    --dscp-hover-row: color-mix(in srgb, var(--colors-teal500) 12%, var(--dscp-surface));
+}

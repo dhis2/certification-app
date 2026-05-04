@@ -4,8 +4,6 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 config({ path: '.env' });
 
-const isProduction = process.env.NODE_ENV === 'production';
-
 const dataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',
@@ -15,15 +13,19 @@ const dataSource = new DataSource({
   database: process.env.DB_NAME,
   ssl:
     process.env.DATABASE_SSL === 'true'
-      ? { rejectUnauthorized: isProduction }
+      ? { rejectUnauthorized: process.env.NODE_ENV === 'production' }
       : false,
-  entities: isProduction ? ['dist/**/*.entity.js'] : ['src/**/*.entity.ts'],
-  migrations: isProduction
-    ? ['dist/database/migrations/*.js']
-    : ['src/database/migrations/*.ts'],
+  entities:
+    process.env.NODE_ENV === 'production'
+      ? ['dist/**/*.entity.js']
+      : ['src/**/*.entity.ts'],
+  migrations:
+    process.env.NODE_ENV === 'production'
+      ? ['dist/database/migrations/*.js']
+      : ['src/database/migrations/*.ts'],
   migrationsTableName: 'migrations',
-  synchronize: !isProduction,
-  logging: !isProduction,
+  synchronize: false,
+  logging: process.env.NODE_ENV !== 'production',
 });
 
 export default dataSource;

@@ -75,7 +75,7 @@ describe('OtpAuthenticationService', () => {
     mockHashingService = {
       hash: jest.fn((val) => Promise.resolve(`hashed:${val}`)),
       compare: jest.fn(),
-    } as unknown as jest.Mocked<HashingService>;
+    };
 
     mockUserRepository = {
       findOne: jest.fn(),

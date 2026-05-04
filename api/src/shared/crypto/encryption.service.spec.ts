@@ -98,7 +98,7 @@ describe('EncryptionService', () => {
           .mockResolvedValue('vault:v1:encrypted-payload'),
         transitDecrypt: jest.fn().mockResolvedValue('decrypted-text'),
       };
-      service = await createService(mockVault as unknown as VaultService);
+      service = await createService(mockVault);
     });
 
     it('should delegate encrypt to vault transit', async () => {
@@ -133,7 +133,7 @@ describe('EncryptionService', () => {
     it('should throw when vault ciphertext found but vault disabled', async () => {
       const service = await createService({
         isEnabled: () => false,
-      } as unknown as VaultService);
+      });
 
       await expect(service.decrypt('vault:v1:some-ciphertext')).rejects.toThrow(
         'Vault ciphertext found but Vault is not enabled',
@@ -158,7 +158,7 @@ describe('EncryptionService', () => {
         isEnabled: () => true,
         transitEncrypt: jest.fn(),
         transitDecrypt: jest.fn(),
-      } as unknown as VaultService);
+      });
 
       const result = await vaultService.decrypt(ciphertext);
       expect(result).toBe('mixed-era-data');
@@ -173,7 +173,7 @@ describe('EncryptionService', () => {
         transitDecrypt: jest.fn(),
       };
 
-      const service = await createService(mockVault as unknown as VaultService);
+      const service = await createService(mockVault);
       const encrypted = await service.encrypt('test');
 
       expect(mockVault.transitEncrypt).not.toHaveBeenCalled();

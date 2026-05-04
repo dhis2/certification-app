@@ -13,8 +13,8 @@ function validateKey(key: string | undefined): Buffer {
   const buffer = Buffer.from(key, 'hex');
   if (buffer.length !== KEY_LENGTH) {
     throw new Error(
-      `OTP_ENCRYPTION_KEY must be ${KEY_LENGTH * 2} hex characters (${KEY_LENGTH} bytes). ` +
-        `Current: ${key.length} characters.`,
+      `OTP_ENCRYPTION_KEY must be ${String(KEY_LENGTH * 2)} hex characters (${String(KEY_LENGTH)} bytes). ` +
+        `Current: ${String(key.length)} characters.`,
     );
   }
 
@@ -28,9 +28,6 @@ export interface EncryptionConfig {
 export default registerAs(
   'encryption',
   (): EncryptionConfig => ({
-    key:
-      process.env.USE_VAULT === 'true'
-        ? Buffer.alloc(KEY_LENGTH)
-        : validateKey(process.env.OTP_ENCRYPTION_KEY),
+    key: validateKey(process.env.OTP_ENCRYPTION_KEY),
   }),
 );

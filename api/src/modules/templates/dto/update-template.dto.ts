@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ControlGroup, ControlType } from '../../../common/enums';
+import { TEMPLATE_VALIDATION_LIMITS } from '../../../common/constants';
 
 export class UpdateTemplateDto {
   @ApiPropertyOptional({ example: 'DHIS2 Server Certification v2' })
@@ -163,6 +164,15 @@ export class UpdateCriterionDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(4000)
+  @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_VERIFICATION_METHOD_LENGTH)
   verificationMethod?: string | null | undefined;
+
+  @ApiPropertyOptional({
+    description:
+      'Rationale for the control (regulatory / security context); optional',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_JUSTIFICATION_LENGTH)
+  justification?: string | null | undefined;
 }

@@ -1,4 +1,4 @@
-import { LogoIconWhite, IconSettings24, IconDashboardWindow24, IconWorld24, IconCheckmarkCircle24, IconFileDocument24, IconUserGroup24, IconLock24 } from '@dhis2/ui'
+import { LogoIconWhite, IconSettings24, IconDashboardWindow24, IconWorld24, IconCheckmarkCircle24, IconFileDocument24, IconUserGroup24 } from '@dhis2/ui'
 import type { FC } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/index.ts'
@@ -17,7 +17,6 @@ export const Layout: FC = () => {
     const isCertificatesActive = location.pathname.startsWith('/admin/certificates')
     const isMonitoringActive = location.pathname.startsWith('/admin/monitoring')
     const isAuditActive = location.pathname.startsWith('/admin/audit')
-    const isKeysActive = location.pathname.startsWith('/admin/keys')
 
     return (
         <div className={styles.container}>
@@ -84,13 +83,6 @@ export const Layout: FC = () => {
                                 <span className={styles.navLabel}>
                                     <IconFileDocument24 />
                                     Audit Logs
-                                </span>
-                            </NavLink>
-
-                            <NavLink to="/admin/keys" className={({ isActive }) => (isActive || isKeysActive ? 'active' : undefined)}>
-                                <span className={styles.navLabel}>
-                                    <IconLock24 />
-                                    Signing Keys
                                 </span>
                             </NavLink>
                         </>

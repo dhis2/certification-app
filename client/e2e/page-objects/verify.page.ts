@@ -1,5 +1,13 @@
-import { Page, Locator } from '@playwright/test'
+import { Page, Locator, expect } from '@playwright/test'
 import { BasePage } from './base.page.ts'
+
+const detailValueByLabel = (page: Page, label: string): Locator =>
+    page
+        .locator('[data-test="verify-certificate-details"]')
+        .locator('div')
+        .filter({ has: page.getByText(label, { exact: true }) })
+        .locator('span')
+        .nth(1)
 
 export class VerifyCertificatePage extends BasePage {
     readonly pageTitle: Locator
@@ -10,6 +18,7 @@ export class VerifyCertificatePage extends BasePage {
     readonly validResult: Locator
     readonly validStatusIcon: Locator
     readonly validStatusTitle: Locator
+    readonly validBadge: Locator
 
     readonly implementationName: Locator
     readonly certificateNumber: Locator
@@ -18,12 +27,12 @@ export class VerifyCertificatePage extends BasePage {
     readonly validFrom: Locator
     readonly validUntil: Locator
 
-    readonly checksSection: Locator
     readonly checkItems: Locator
 
     readonly invalidResult: Locator
     readonly invalidStatusIcon: Locator
     readonly invalidStatusTitle: Locator
+    readonly invalidBadge: Locator
 
     readonly errorNotice: Locator
 
@@ -34,28 +43,29 @@ export class VerifyCertificatePage extends BasePage {
 
         this.pageTitle = page.locator('h1')
 
-        this.loadingSpinner = page.locator('[class*="loadingContainer"]')
+        this.loadingSpinner = page.locator('[data-test="verification-loading"]')
         this.loadingText = page.locator('text=Verifying certificate')
 
-        this.validResult = page.locator('[data-test="verification-valid"], [class*="validResult"]')
-        this.validStatusIcon = this.validResult.locator('[class*="statusIcon"]')
-        this.validStatusTitle = this.validResult.locator('h2')
+        this.validResult = page.locator('[data-test="verification-valid"]')
+        this.validStatusIcon = this.validResult.locator('[aria-hidden="true"]').first()
+        this.validStatusTitle = this.validResult.locator('h2').first()
+        this.validBadge = this.validResult.getByText('Valid', { exact: true })
 
-        this.implementationName = page.locator('text=Implementation').locator('..').locator('[class*="detailValue"]')
-        this.certificateNumber = page.locator('text=Certificate Number').locator('..').locator('[class*="detailValue"]')
-        this.controlGroup = page.locator('text=Control Group').locator('..').locator('[class*="detailValue"]')
-        this.score = page.locator('text=Score').locator('..').locator('[class*="detailValue"]')
-        this.validFrom = page.locator('text=Valid From').locator('..').locator('[class*="detailValue"]')
-        this.validUntil = page.locator('text=Valid Until').locator('..').locator('[class*="detailValue"]')
+        this.implementationName = detailValueByLabel(page, 'Implementation')
+        this.certificateNumber = detailValueByLabel(page, 'Certificate Number')
+        this.controlGroup = detailValueByLabel(page, 'Control Group')
+        this.score = detailValueByLabel(page, 'Score')
+        this.validFrom = detailValueByLabel(page, 'Valid From')
+        this.validUntil = detailValueByLabel(page, 'Valid Until')
 
-        this.checksSection = page.locator('[class*="checksSection"]')
-        this.checkItems = page.locator('[class*="checkItem"], [class*="checkItemFailed"]')
+        this.checkItems = page.locator('[data-test="verification-checks"] > li')
 
-        this.invalidResult = page.locator('[data-test="verification-invalid"], [class*="invalidResult"]')
-        this.invalidStatusIcon = this.invalidResult.locator('[class*="statusIconInvalid"]')
-        this.invalidStatusTitle = this.invalidResult.locator('h2')
+        this.invalidResult = page.locator('[data-test="verification-invalid"]')
+        this.invalidStatusIcon = this.invalidResult.locator('[aria-hidden="true"]').first()
+        this.invalidStatusTitle = this.invalidResult.locator('h2').first()
+        this.invalidBadge = this.invalidResult.getByRole('status')
 
-        this.errorNotice = page.locator('[class*="NoticeBox"][class*="error"]')
+        this.errorNotice = page.locator('[data-test="verification-error"]')
 
         this.footer = page.locator('[class*="footer"]')
     }
@@ -66,11 +76,30 @@ export class VerifyCertificatePage extends BasePage {
     }
 
     async waitForResult(): Promise<void> {
-        await Promise.race([
-            this.validResult.waitFor({ state: 'visible', timeout: 15000 }),
-            this.invalidResult.waitFor({ state: 'visible', timeout: 15000 }),
-            this.errorNotice.waitFor({ state: 'visible', timeout: 15000 }),
-        ])
+        const loading = this.page.locator('[data-test="verification-loading"]')
+        await expect
+            .poll(
+                async () => {
+                    if (await loading.isVisible()) {
+                        return false
+                    }
+                    if (await this.validResult.isVisible()) {
+                        return true
+                    }
+                    if (await this.invalidResult.isVisible()) {
+                        return true
+                    }
+                    if (await this.errorNotice.isVisible()) {
+                        return true
+                    }
+                    if (await this.page.getByRole('alert').isVisible()) {
+                        return true
+                    }
+                    return false
+                },
+                { timeout: 20000 }
+            )
+            .toBeTruthy()
     }
 
     async isValid(): Promise<boolean> {
@@ -86,8 +115,13 @@ export class VerifyCertificatePage extends BasePage {
     }
 
     async getErrorMessage(): Promise<string | null> {
-        if (await this.hasError()) {
-            return this.errorNotice.textContent()
+        const box = this.errorNotice
+        if (await box.isVisible()) {
+            return box.textContent()
+        }
+        const alert = this.page.getByRole('alert')
+        if (await alert.isVisible()) {
+            return alert.textContent()
         }
         return null
     }

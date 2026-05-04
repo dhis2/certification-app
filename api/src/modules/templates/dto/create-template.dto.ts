@@ -125,6 +125,15 @@ export class CreateCriterionDto {
   @IsString()
   @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_VERIFICATION_METHOD_LENGTH)
   verificationMethod?: string | null | undefined;
+
+  @ApiPropertyOptional({
+    description:
+      'Rationale for the control (regulatory / security context); optional',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_JUSTIFICATION_LENGTH)
+  justification?: string | null | undefined;
 }
 
 export class CreateCategoryDto {

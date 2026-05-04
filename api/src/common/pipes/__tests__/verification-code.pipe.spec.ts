@@ -14,12 +14,16 @@ describe('Verification Pipes', () => {
     });
 
     it('should pass through valid verification codes', () => {
-      const validCode = crypto.randomBytes(8).toString('base64url');
+      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      const validCode = Array.from(
+        crypto.randomBytes(12),
+        (b) => alphabet[b % 32],
+      ).join('');
       expect(pipe.transform(validCode, { type: 'param' })).toBe(validCode);
     });
 
-    it('should pass through valid base64url strings of correct length', () => {
-      const validCodes = ['ABCDEFGHIJK', 'abc-def_123', '01234567890'];
+    it('should pass through valid base32 strings of correct length', () => {
+      const validCodes = ['ABCDEFGHIJKL', 'AAAAAAAAAAAA', 'ZZZZZZZZZZZZ'];
 
       for (const code of validCodes) {
         expect(pipe.transform(code, { type: 'param' })).toBe(code);
@@ -56,7 +60,7 @@ describe('Verification Pipes', () => {
 
     it('should reject potential injection attempts', () => {
       const injectionAttempts = [
-        "'; DROP--11", // SQL injection
+        "'; DROP--ABCDEF", // SQL injection
         '<script>x</script>', // XSS
         '../../../etc', // Path traversal
         '${7*7}12345', // Template injection

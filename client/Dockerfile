@@ -16,7 +16,7 @@ RUN addgroup -g 1001 -S app && adduser -S app -u 1001 && \
     chown -R app:app /var/cache/nginx /var/log/nginx && \
     sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf
 
-COPY --from=build --chown=app:app /app/build /usr/share/nginx/html
+COPY --from=base --chown=app:app /app/build /usr/share/nginx/html
 COPY --chown=app:app docker/security-headers.conf /etc/nginx/security-headers.conf
 COPY --chown=app:app docker/nginx.conf /etc/nginx/conf.d/default.conf
 

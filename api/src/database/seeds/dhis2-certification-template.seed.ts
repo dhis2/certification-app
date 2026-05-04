@@ -34,6 +34,7 @@ interface CriterionData {
   isMandatory: boolean;
   evidenceRequired: boolean;
   evidenceDescription: string;
+  justification?: string | null;
 }
 
 interface CategoryData {
@@ -904,6 +905,7 @@ async function seedTemplate(): Promise<void> {
           controlGroup: mapControlGroup(criterionData.controlGroup),
           controlType: mapControlType(criterionData.controlType),
           cisMapping: criterionData.cisMapping,
+          justification: criterionData.justification ?? null,
           weight: 1.0, // Equal weight within category
           isMandatory: criterionData.isMandatory,
           isCriticalFail:

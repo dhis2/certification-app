@@ -107,7 +107,7 @@ describe('checkPwnedPassword (HIBP k-anonymity)', () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
       status: 500,
-    } as Response);
+    });
 
     const result = await checkPwnedPassword('anypassword123');
 
@@ -154,7 +154,7 @@ describe('k-Anonymity implementation', () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       text: () => Promise.resolve(mockResponse),
-    } as Response);
+    });
 
     const result = await checkPwnedPassword('uniquepasswordhere');
 

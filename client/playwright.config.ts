@@ -27,9 +27,14 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'npm run start',
+        // Default: production preview so transitive deps resolve like CI builds. Set PLAYWRIGHT_VITE_DEV=1 for `vite` dev.
+        command: process.env.PLAYWRIGHT_VITE_DEV === '1' ? 'npm run start' : 'npm run start:e2e',
         url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
-        timeout: 120 * 1000,
+        timeout: 240 * 1000,
+        env: {
+            ...process.env,
+            VITE_API_URL: process.env.VITE_API_URL ?? 'http://127.0.0.1:8080/api/v1',
+        },
     },
 })

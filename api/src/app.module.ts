@@ -10,7 +10,6 @@ import { ThrottlerBehindProxyGuard } from './common/guards/throttler-behind-prox
 import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './health';
 import { DatabaseModule } from './database/database.module';
-import { SigningModule } from './modules/signing';
 import { AuditModule } from './modules/audit/audit.module';
 import { ImplementationsModule } from './modules/implementations';
 import { SubmissionsModule } from './modules/submissions';
@@ -52,7 +51,6 @@ import { VaultModule } from './modules/vault';
     SubmissionsModule,
     TemplatesModule,
     CertificatesModule,
-    SigningModule,
     MailModule,
     MonitoringModule,
   ],

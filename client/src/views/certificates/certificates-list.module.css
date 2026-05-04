@@ -3,6 +3,8 @@
     flex-direction: column;
     gap: var(--spacers-dp16);
     max-width: 1200px;
+    font-family: var(--sans-body);
+    color: var(--dscp-fg);
 }
 
 .filters {
@@ -15,6 +17,8 @@
 .tableCard {
     padding: 0;
     overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
 }
 
 .table {
@@ -26,49 +30,60 @@
     text-align: left;
     padding: var(--spacers-dp8) var(--spacers-dp12);
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
+    font-family: var(--sans-head);
     text-transform: uppercase;
-    color: var(--colors-grey600);
-    border-bottom: 1px solid var(--colors-grey300);
-    background-color: var(--colors-grey050);
-    letter-spacing: 0.5px;
+    color: var(--accent-dark);
+    border-bottom: 1px solid var(--border);
+    background-color: var(--soft);
+    letter-spacing: 0.04em;
 }
 
 .table td {
     padding: var(--spacers-dp8) var(--spacers-dp12);
     font-size: 0.8125rem;
-    color: var(--colors-grey800);
-    border-bottom: 1px solid var(--colors-grey200);
+    color: var(--dscp-fg);
+    border-bottom: 1px solid var(--border);
     vertical-align: middle;
 }
 
 .table tbody tr:hover {
-    background-color: var(--colors-grey050);
+    background-color: var(--dscp-hover-row);
 }
 
-.badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
+.pill,
+.pillActive,
+.pillRevoked,
+.pillExpired {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
     font-size: 0.6875rem;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    font-family: var(--sans-head);
+    border: 1px solid var(--border);
+    background: var(--soft);
+    color: var(--accent-dark);
 }
 
-.badgeActive {
-    background-color: var(--colors-green050);
-    color: var(--colors-green800);
+.pillActive {
+    background: var(--dscp-pill-positive-bg);
+    border-color: var(--dscp-pill-positive-border);
+    color: var(--dscp-pill-positive-fg);
 }
 
-.badgeRevoked {
-    background-color: var(--colors-red050);
-    color: var(--colors-red800);
+.pillRevoked {
+    background: var(--dscp-pill-warning-bg);
+    border-color: var(--dscp-pill-warning-border);
+    color: var(--dscp-pill-warning-fg);
 }
 
-.badgeExpired {
-    background-color: var(--colors-grey100);
-    color: var(--colors-grey600);
+.pillExpired {
+    background: var(--soft);
+    color: var(--dscp-muted);
 }
 
 .pagination {
@@ -97,7 +112,7 @@
 .emptyState {
     text-align: center;
     padding: var(--spacers-dp24);
-    color: var(--colors-grey600);
+    color: var(--dscp-muted);
     font-size: 0.875rem;
 }
 

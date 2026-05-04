@@ -56,7 +56,10 @@ describe('TemplateLoaderService', () => {
     findOne: jest.Mock;
     findPublishedByName: jest.Mock;
     create: jest.Mock;
+  };
+  let mockVersioningService: {
     publish: jest.Mock;
+    createNewVersion: jest.Mock;
   };
 
   beforeEach(() => {
@@ -83,12 +86,9 @@ describe('TemplateLoaderService', () => {
       create: jest
         .fn()
         .mockResolvedValue(createMockTemplate({ id: 'new-123' })),
-      publish: jest
-        .fn()
-        .mockResolvedValue(createMockTemplate({ isPublished: true })),
     };
 
-    const mockVersioningService = {
+    mockVersioningService = {
       publish: jest
         .fn()
         .mockResolvedValue(createMockTemplate({ isPublished: true })),
@@ -104,7 +104,7 @@ describe('TemplateLoaderService', () => {
   });
 
   describe('loadFromContent', () => {
-    it('should parse valid YAML content', async () => {
+    it('should parse valid YAML content', () => {
       const yamlContent = `
 name: Test Template
 version: 1
@@ -118,25 +118,25 @@ categories:
         controlType: technical
 `;
 
-      const result = await service.loadFromContent(yamlContent);
+      const result = service.loadFromContent(yamlContent);
 
       expect(result.name).toBe('Test Template');
       expect(result.version).toBe(1);
       expect(result.categories).toHaveLength(1);
     });
 
-    it('should reject content exceeding size limit', async () => {
+    it('should reject content exceeding size limit', () => {
       const largeContent = 'a'.repeat(6 * 1024 * 1024);
 
-      await expect(service.loadFromContent(largeContent)).rejects.toThrow(
+      expect(() => service.loadFromContent(largeContent)).toThrow(
         BadRequestException,
       );
     });
 
-    it('should reject invalid YAML syntax', async () => {
+    it('should reject invalid YAML syntax', () => {
       const invalidYaml = 'name: [invalid yaml';
 
-      await expect(service.loadFromContent(invalidYaml)).rejects.toThrow(
+      expect(() => service.loadFromContent(invalidYaml)).toThrow(
         BadRequestException,
       );
     });
@@ -161,7 +161,7 @@ categories:
 
       expect(result.created).toBe(true);
       expect(mockTemplatesService.create).toHaveBeenCalled();
-      expect(mockTemplatesService.publish).toHaveBeenCalled();
+      expect(mockVersioningService.publish).toHaveBeenCalledWith('new-123');
     });
 
     it('should skip sync if same version already exists', async () => {

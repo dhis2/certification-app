@@ -109,7 +109,7 @@ export class AuditInterceptor implements NestInterceptor {
       return entityId;
     }
     if (result && typeof result === 'object' && 'id' in result) {
-      return String((result as { id: unknown }).id);
+      return String(result.id);
     }
     return entityId;
   }

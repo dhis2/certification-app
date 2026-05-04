@@ -2,11 +2,34 @@ import { Button, Card, CircularLoader, SingleSelectField, SingleSelectOption } f
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heading, CursorPagination } from '../../components/index.ts'
-import { useCertificatesList, useCertificateActions, usePaginationNavigation } from '../../hooks/index.ts'
+import { useCertificatesList, usePaginationNavigation } from '../../hooks/index.ts'
+import type { CertificateEntry } from '../../hooks/use-certificates.ts'
 import { formatDate } from '../../utils/format.ts'
 import styles from './certificates-list.module.css'
 
 const PAGE_SIZE = 20
+
+const getStatusBadge = (cert: CertificateEntry) => {
+    if (cert.isRevoked) {
+        return (
+            <span className={`${styles.pill} ${styles.pillRevoked}`} role="status">
+                Revoked
+            </span>
+        )
+    }
+    if (new Date(cert.validUntil) < new Date()) {
+        return (
+            <span className={`${styles.pill} ${styles.pillExpired}`} role="status">
+                Expired
+            </span>
+        )
+    }
+    return (
+        <span className={`${styles.pill} ${styles.pillActive}`} role="status">
+            Active
+        </span>
+    )
+}
 
 export const CertificatesList = () => {
     const navigate = useNavigate()
@@ -19,7 +42,6 @@ export const CertificatesList = () => {
         first: PAGE_SIZE,
         after: afterCursor,
     })
-    const { downloadCredential } = useCertificateActions()
 
     const { start: displayStart, end: displayEnd } = getDisplayRange(PAGE_SIZE, totalCount)
 
@@ -31,34 +53,8 @@ export const CertificatesList = () => {
         [resetPagination]
     )
 
-    const handleDownload = useCallback(
-        async (id: string, certNumber: string) => {
-            try {
-                const credential = await downloadCredential(id)
-                const blob = new Blob([JSON.stringify(credential, null, 2)], { type: 'application/json' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `certificate-${certNumber}.json`
-                a.click()
-                URL.revokeObjectURL(url)
-            } catch {}
-        },
-        [downloadCredential]
-    )
-
-    const getStatusBadge = (cert: { isRevoked: boolean; validUntil: string }) => {
-        if (cert.isRevoked) {
-            return <span className={`${styles.badge} ${styles.badgeRevoked}`}>Revoked</span>
-        }
-        if (new Date(cert.validUntil) < new Date()) {
-            return <span className={`${styles.badge} ${styles.badgeExpired}`}>Expired</span>
-        }
-        return <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
-    }
-
     return (
-        <div className={styles.container}>
+        <div className={`dscp-surface ${styles.container}`}>
             <Heading title="Certificate Management" />
 
             <div className={styles.filters}>
@@ -102,9 +98,6 @@ export const CertificatesList = () => {
                                             <div className={styles.actionsCell}>
                                                 <Button small onClick={() => navigate(`/admin/certificates/${cert.id}`)}>
                                                     View
-                                                </Button>
-                                                <Button small onClick={() => handleDownload(cert.id, cert.certificateNumber)}>
-                                                    Download
                                                 </Button>
                                             </div>
                                         </td>

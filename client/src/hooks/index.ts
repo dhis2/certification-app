@@ -19,7 +19,6 @@ export { useCertificatesList, useCertificateActions } from './use-certificates.t
 export { useMonitoringStatus, useMetrics, useAlerts } from './monitoring/index.ts'
 
 export { useAuditLogs, useAuditActions } from './audit/index.ts'
-export { useSigningKeys } from './use-signing-keys.ts'
 
 export {
     useTemplatesList,

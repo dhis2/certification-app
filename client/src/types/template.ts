@@ -8,6 +8,7 @@ export interface CriterionDefinition {
     description?: string
     verificationMethod?: string
     guidance?: string
+    justification?: string | null
     controlType: ControlType
     controlGroup?: ControlGroupType
     isMandatory?: boolean
@@ -29,6 +30,14 @@ export interface CategoryDefinition {
     criteria: CriterionDefinition[]
 }
 
+export interface ComplianceStatusScoring {
+    compliant: number
+    partially_compliant: number
+    non_compliant: number
+    not_applicable: number | null
+    not_tested: number
+}
+
 export interface TemplateDefinition {
     name: string
     version: number
@@ -36,6 +45,7 @@ export interface TemplateDefinition {
     effectiveFrom?: string
     effectiveTo?: string
     categories: CategoryDefinition[]
+    complianceStatusScoring?: ComplianceStatusScoring
 }
 
 export interface CriterionResponse {
@@ -45,6 +55,7 @@ export interface CriterionResponse {
     description?: string | null
     guidance?: string | null
     verificationMethod?: string | null
+    justification?: string | null
     weight: number
     isMandatory: boolean
     isCriticalFail: boolean
@@ -70,8 +81,12 @@ export interface CategoryResponse {
 export interface TemplateResponse {
     id: string
     name: string
+    /** Same as `name`; DSCP reference template `{{templateName}}`. */
+    templateName: string
     version: number
     description?: string | null
+    /** Same as `description`; DSCP `{{templateDescription}}`. */
+    templateDescription?: string | null
     isPublished: boolean
     parentVersionId?: string | null
     effectiveFrom?: string | null
@@ -79,6 +94,7 @@ export interface TemplateResponse {
     createdAt: string
     updatedAt: string
     categories?: CategoryResponse[]
+    complianceStatusScoring: ComplianceStatusScoring
 }
 
 export interface TemplateEdge {
@@ -209,6 +225,7 @@ export interface TemplateConfig {
     maxEvidenceDescriptionLength: number
     maxVerificationMethodLength: number
     maxCisMappingLength: number
+    maxJustificationLength: number
     maxFilenameLength: number
 }
 

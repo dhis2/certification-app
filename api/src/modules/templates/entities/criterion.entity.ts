@@ -81,6 +81,9 @@ export class Criterion {
   @Column({ name: 'verification_method', type: 'text', nullable: true })
   verificationMethod!: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  justification!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

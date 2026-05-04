@@ -182,6 +182,39 @@ describe('TemplateValidatorService', () => {
 
       expect(result.valid).toBe(false);
     });
+
+    it('should reject non-canonical complianceStatusScoring', async () => {
+      const definition = createValidDefinition();
+      definition.complianceStatusScoring = {
+        compliant: 99,
+        partially_compliant: 50,
+        non_compliant: 0,
+        not_applicable: null,
+        not_tested: 0,
+      };
+
+      const result = await service.validate(definition);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) => e.path === '/complianceStatusScoring'),
+      ).toBe(true);
+    });
+
+    it('should accept canonical complianceStatusScoring', async () => {
+      const definition = createValidDefinition();
+      definition.complianceStatusScoring = {
+        compliant: 100,
+        partially_compliant: 50,
+        non_compliant: 0,
+        not_applicable: null,
+        not_tested: 0,
+      };
+
+      const result = await service.validate(definition);
+
+      expect(result.valid).toBe(true);
+    });
   });
 
   describe('loadSchema', () => {

@@ -1,7 +1,9 @@
 .container {
     padding: var(--spacers-dp24);
-    max-width: 900px;
+    max-width: 1050px;
     margin: 0 auto;
+    font-family: var(--sans-body);
+    color: var(--dscp-fg);
 }
 
 .loadingContainer {
@@ -15,42 +17,62 @@
     margin-bottom: var(--spacers-dp24);
 }
 
-/* Result Section */
 .resultSection {
     margin-bottom: var(--spacers-dp32);
 }
 
-/* Certificate Card */
 .certificateCard {
+    position: relative;
     padding: var(--spacers-dp32);
     text-align: center;
-    border: 2px solid var(--colors-green500);
-    background: linear-gradient(180deg, var(--colors-green050) 0%, var(--colors-white) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--dscp-surface);
+    overflow: hidden;
+    box-shadow: var(--elevations-e100);
+}
+
+.certificateCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--accent);
 }
 
 .certificateHeader {
-    margin-bottom: var(--spacers-dp32);
+    margin-bottom: var(--spacers-dp24);
 }
 
 .certificateIcon {
-    font-size: 64px;
-    margin-bottom: var(--spacers-dp16);
+    font-size: 3rem;
+    margin-bottom: var(--spacers-dp8);
+    line-height: 1;
+    color: var(--accent);
 }
 
 .certificateTitle {
     margin: 0;
-    font-size: 28px;
+    font-size: 1.5rem;
     font-weight: 700;
-    color: var(--colors-green800);
+    font-family: var(--sans-head);
+    color: var(--accent-dark);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacers-dp8);
 }
 
 .certificateDetails {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacers-dp24);
+    gap: var(--spacers-dp16);
     text-align: left;
-    max-width: 600px;
-    margin: 0 auto var(--spacers-dp32);
+    max-width: 640px;
+    margin: 0 auto var(--spacers-dp24);
 }
 
 @media (max-width: 600px) {
@@ -66,16 +88,17 @@
 }
 
 .detailLabel {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--colors-grey600);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-family: var(--sans-head);
+    color: var(--dscp-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.05em;
 }
 
 .detailValue {
-    font-size: 16px;
-    color: var(--colors-grey900);
+    font-size: 0.9375rem;
+    color: var(--dscp-fg);
     font-weight: 500;
 }
 
@@ -86,51 +109,67 @@
 .verificationSection {
     margin-top: var(--spacers-dp24);
     padding-top: var(--spacers-dp16);
-    border-top: 1px solid var(--colors-grey200);
+    border-top: 1px solid var(--border);
 }
 
 .verificationLabel {
     margin: 0 0 var(--spacers-dp8) 0;
-    font-size: 14px;
-    color: var(--colors-grey600);
+    font-size: 0.875rem;
+    color: var(--dscp-muted);
 }
 
 .verificationUrl {
     display: block;
     padding: var(--spacers-dp12);
-    background: var(--colors-grey100);
-    border-radius: 4px;
-    font-size: 14px;
+    background: var(--soft);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-family: var(--mono);
     word-break: break-all;
-    color: var(--colors-grey800);
+    color: var(--accent-dark);
+    border: 1px solid var(--border);
 }
 
-/* Failed Card */
 .failedCard {
+    position: relative;
     padding: var(--spacers-dp24);
     margin-bottom: var(--spacers-dp24);
-    border: 1px solid var(--colors-red200);
-    background: var(--colors-red050);
+    border: 1px solid var(--dscp-border-warn);
+    border-radius: var(--radius);
+    background: var(--dscp-surface-warn);
+    overflow: hidden;
+}
+
+.failedCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--accent-alt);
 }
 
 .failedTitle {
     margin: 0 0 var(--spacers-dp12) 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--colors-red800);
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: var(--sans-head);
+    color: var(--dscp-pill-warning-fg);
 }
 
 .failedDescription {
     margin: 0 0 var(--spacers-dp24) 0;
-    color: var(--colors-grey700);
+    color: var(--dscp-fg);
+    line-height: 1.5;
 }
 
 .controlCode {
-    font-family: monospace;
-    font-size: 13px;
-    background: var(--colors-grey100);
-    padding: 2px 6px;
-    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    background: var(--soft);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
 }
 
 .positive {
@@ -138,62 +177,86 @@
 }
 
 .warning {
-    color: var(--colors-yellow800);
+    color: var(--dscp-pill-warning-fg);
 }
 
 .negative {
     color: var(--colors-red700);
 }
 
-/* Next Steps */
 .nextSteps {
     padding: var(--spacers-dp24);
-    background: var(--colors-grey050);
-    border-radius: 8px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     margin-bottom: var(--spacers-dp24);
 }
 
 .nextSteps h3 {
     margin: 0 0 var(--spacers-dp16) 0;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 600;
-    color: var(--colors-grey800);
+    font-family: var(--sans-head);
+    color: var(--accent-dark);
 }
 
 .stepsList {
     margin: 0 0 var(--spacers-dp24) 0;
     padding-left: var(--spacers-dp24);
-    color: var(--colors-grey700);
+    color: var(--dscp-fg);
 }
 
 .stepsList li {
     margin-bottom: var(--spacers-dp8);
 }
 
-/* Notes Card */
 .notesCard {
     padding: var(--spacers-dp24);
     margin-top: var(--spacers-dp24);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 }
 
 .notesTitle {
     margin: 0 0 var(--spacers-dp12) 0;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 600;
-    color: var(--colors-grey800);
+    font-family: var(--sans-head);
+    color: var(--accent-dark);
 }
 
 .notesContent {
     margin: 0;
-    color: var(--colors-grey700);
+    color: var(--dscp-fg);
     white-space: pre-wrap;
+    line-height: 1.55;
 }
 
-/* Print styles */
+.revokedBadge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: var(--spacers-dp8);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    font-family: var(--sans-head);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--dscp-pill-warning-bg);
+    color: var(--dscp-pill-warning-fg);
+    border: 1px solid var(--dscp-pill-warning-border);
+}
+
 @media print {
     .header,
     .certificateActions,
     .nextSteps button {
+        display: none;
+    }
+
+    /* Pass path: drop duplicate banner above the certificate card */
+    .container:has(.certificateCard) .resultSection {
         display: none;
     }
 
@@ -205,5 +268,14 @@
     .certificateCard {
         border: none;
         box-shadow: none;
+    }
+
+    .failedCard {
+        border: 1px solid var(--colors-grey300);
+        break-inside: avoid;
+    }
+
+    .notesCard {
+        break-inside: avoid;
     }
 }

@@ -66,6 +66,7 @@ export class CriterionService {
       controlType: dto.controlType,
       cisMapping: dto.cisMapping ?? null,
       verificationMethod: dto.verificationMethod ?? null,
+      justification: dto.justification ?? null,
     });
 
     return this.criterionRepository.save(criterion);
@@ -137,6 +138,9 @@ export class CriterionService {
     }
     if (dto.verificationMethod !== undefined) {
       criterion.verificationMethod = dto.verificationMethod ?? null;
+    }
+    if (dto.justification !== undefined) {
+      criterion.justification = dto.justification ?? null;
     }
 
     return this.criterionRepository.save(criterion);

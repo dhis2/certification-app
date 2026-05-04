@@ -49,6 +49,23 @@ describe('Criterion Entity', () => {
     });
   });
 
+  describe('justification field', () => {
+    it('is unset on a new instance until assigned', () => {
+      expect(new Criterion().justification).toBeUndefined();
+    });
+
+    it('accepts null', () => {
+      criterion.justification = null;
+      expect(criterion.justification).toBeNull();
+    });
+
+    it('accepts rationale text', () => {
+      criterion.justification =
+        'Required for continuity of care and national reporting obligations.';
+      expect(criterion.justification).toContain('continuity');
+    });
+  });
+
   describe('cisMapping field', () => {
     it('should accept a string value', () => {
       criterion.cisMapping = '11.2';

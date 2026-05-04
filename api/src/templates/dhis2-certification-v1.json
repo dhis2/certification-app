@@ -15,7 +15,8 @@
           "verificationMethod": "Review backup configuration files; verify backup logs from past 30 days; confirm retention policy documentation; test backup integrity checksums.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "11.2"
+          "cisMapping": "11.2",
+          "justification": null
         },
         {
           "code": "DB-02",
@@ -24,7 +25,8 @@
           "verificationMethod": "Review restore test documentation or logs from past 3 months; verify test results and lessons learned; confirm non-production test environment exists.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "11.5"
+          "cisMapping": "11.5",
+          "justification": null
         },
         {
           "code": "DB-03",
@@ -33,7 +35,8 @@
           "verificationMethod": "Verify off-site backup location and access controls.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "11.4"
+          "cisMapping": "11.4",
+          "justification": null
         },
         {
           "code": "DB-04",
@@ -42,7 +45,8 @@
           "verificationMethod": "Review database user roles and permissions; verify the DHIS2 user only has access to the required DHIS2 database, and from the DHIS2 IP address.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.4"
+          "cisMapping": "5.4",
+          "justification": null
         },
         {
           "code": "DB-05",
@@ -51,7 +55,8 @@
           "verificationMethod": "Audit backup file permissions; verify backup scripts include proper permission settings; check for world-readable backup files.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "DB-06",
@@ -60,7 +65,8 @@
           "verificationMethod": "Verify encryption configuration; review key management procedures; confirm encryption status of all database volumes.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "3.11"
+          "cisMapping": "3.11",
+          "justification": null
         },
         {
           "code": "DB-07",
@@ -69,7 +75,8 @@
           "verificationMethod": "Verify backup encryption configuration; confirm key storage separation; test encrypted backup restore procedure.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "3.11"
+          "cisMapping": "3.11",
+          "justification": null
         },
         {
           "code": "DB-08",
@@ -78,7 +85,8 @@
           "verificationMethod": "Review pg_hba.conf file; ensure the DHIS2 instance user only has access to the DHIS2 database, and from the DHIS2 IP address. Verify TLS enforcement; confirm SCRAM authentication enabled; check for MD5 usage.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.1"
+          "cisMapping": "5.1",
+          "justification": null
         },
         {
           "code": "DB-09",
@@ -87,7 +95,8 @@
           "verificationMethod": "Run SELECT version(); and capture output; compare against the PostgreSQL version support/EOL matrix; review OS package source and pinned version.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "DB-10",
@@ -96,7 +105,8 @@
           "verificationMethod": "Run SHOW jit; (expect off) and verify corresponding entries in postgresql.conf and effective reload/restart logs.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         }
       ]
     },
@@ -112,7 +122,8 @@
           "verificationMethod": "Review network architecture documentation (if any); verify reverse proxy installation and configuration; confirm traffic routing through proxy.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "DP-02",
@@ -121,7 +132,8 @@
           "verificationMethod": "Run SSL Labs scan; verify TLS version and cipher configuration; review certificate validity.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "3.1"
+          "cisMapping": "3.1",
+          "justification": null
         },
         {
           "code": "DP-03",
@@ -130,7 +142,8 @@
           "verificationMethod": "Review reverse proxy configuration; perform external port scan; verify only necessary endpoints accessible; check default-deny rules.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "4.4"
+          "cisMapping": "4.4",
+          "justification": null
         },
         {
           "code": "DP-04",
@@ -139,7 +152,8 @@
           "verificationMethod": "Review logging configuration; verify log retention policy; check log integrity mechanisms; confirm log review procedures.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "8.1"
+          "cisMapping": "8.1",
+          "justification": null
         },
         {
           "code": "DP-05",
@@ -148,7 +162,8 @@
           "verificationMethod": "Check reverse proxy process ownership; verify service account configuration; confirm absence of root privileges.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.4"
+          "cisMapping": "5.4",
+          "justification": null
         },
         {
           "code": "DP-06",
@@ -157,7 +172,8 @@
           "verificationMethod": "Check reverse proxy version; compare against vendor EOL schedule.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "DP-07",
@@ -166,7 +182,8 @@
           "verificationMethod": "Review reverse proxy configuration for security headers; test header presence using browser developer tools; verify correct values.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         }
       ]
     },
@@ -182,7 +199,8 @@
           "verificationMethod": "Review sshd_config for PermitRootLogin setting; verify sudo configuration; check for individual admin accounts.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.4"
+          "cisMapping": "5.4",
+          "justification": null
         },
         {
           "code": "OS-02",
@@ -191,7 +209,8 @@
           "verificationMethod": "Verify SSH key configuration; check for password authentication disabled; review authorized_keys; confirm algorithm restrictions.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.2.17"
+          "cisMapping": "5.2.17",
+          "justification": null
         },
         {
           "code": "OS-03",
@@ -200,7 +219,8 @@
           "verificationMethod": "Review sshd_config for PasswordAuthentication, KexAlgorithms, and MACs settings; test password login attempt (should fail).",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.2.8"
+          "cisMapping": "5.2.8",
+          "justification": null
         },
         {
           "code": "OS-04",
@@ -209,7 +229,8 @@
           "verificationMethod": "Audit permissions on /etc/ssh/sshd_config, private keys, authorized_keys; verify ownership; check umask.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.3.1, 5.3.2, 5.3.3"
+          "cisMapping": "5.3.1, 5.3.2, 5.3.3",
+          "justification": null
         },
         {
           "code": "OS-05",
@@ -218,7 +239,8 @@
           "verificationMethod": "Verify number of admin accounts; review admin account usage logs; confirm monitoring and alerting on admin activity.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.4"
+          "cisMapping": "5.4",
+          "justification": null
         },
         {
           "code": "OS-06",
@@ -227,7 +249,8 @@
           "verificationMethod": "Review /etc/passwd for user accounts; verify no shared accounts exist; check SSH authentication methods and MFA status.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.2"
+          "cisMapping": "5.2",
+          "justification": null
         },
         {
           "code": "OS-07",
@@ -236,7 +259,8 @@
           "verificationMethod": "Review OS offboarding procedures; verify timeline compliance; check removal from groups/sudoers.",
           "controlGroup": "DSCP1",
           "controlType": "organizational",
-          "cisMapping": "5.3"
+          "cisMapping": "5.3",
+          "justification": null
         },
         {
           "code": "OS-08",
@@ -245,7 +269,8 @@
           "verificationMethod": "Audit home directories for sensitive files; check for SSH keys, credentials, configs; verify directory permissions.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "6.1"
+          "cisMapping": "6.1",
+          "justification": null
         },
         {
           "code": "OS-09",
@@ -254,7 +279,8 @@
           "verificationMethod": "Verify unattended-upgrades or equivalent service; review patch logs; confirm reboot policy.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "7.3"
+          "cisMapping": "7.3",
+          "justification": null
         },
         {
           "code": "OS-10",
@@ -263,7 +289,8 @@
           "verificationMethod": "Audit home directories for sensitive files; check for SSH keys, credentials, configs; verify directory permissions.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "6.1"
+          "cisMapping": "6.1",
+          "justification": null
         },
         {
           "code": "OS-11",
@@ -272,7 +299,8 @@
           "verificationMethod": "Review monitoring platform configuration; verify alert rules and thresholds; confirm notification channels; test alert delivery.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "OS-12",
@@ -281,7 +309,8 @@
           "verificationMethod": "Verify encryption status of system volumes; review key management procedures; confirm encryption is active at boot.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "3.11"
+          "cisMapping": "3.11",
+          "justification": null
         },
         {
           "code": "OS-13",
@@ -290,7 +319,8 @@
           "verificationMethod": "Review user accounts and group memberships; verify sudo configurations.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "5.4"
+          "cisMapping": "5.4",
+          "justification": null
         },
         {
           "code": "OS-14",
@@ -299,7 +329,8 @@
           "verificationMethod": "Review firewall rules; perform port scan from external network; verify only necessary ports accessible; check default policies.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "4.4"
+          "cisMapping": "4.4",
+          "justification": null
         },
         {
           "code": "OS-15",
@@ -308,7 +339,8 @@
           "verificationMethod": "List running services; compare against approved baseline; verify service necessity.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "2.2"
+          "cisMapping": "2.2",
+          "justification": null
         }
       ]
     },
@@ -324,7 +356,8 @@
           "verificationMethod": "Verify default admin account status; confirm unique superuser usernames; review password complexity requirements.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "AP-02",
@@ -333,7 +366,8 @@
           "verificationMethod": "Query superuser role assignments; calculate percentage of superusers.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "AP-03",
@@ -342,7 +376,8 @@
           "verificationMethod": "Verify MFA configuration for admin accounts; review MFA enrollment status; test MFA enforcement at login.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         }
       ]
     },
@@ -358,7 +393,8 @@
           "verificationMethod": "Check Tomcat process ownership; verify service account configuration; confirm absence of root privileges.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "10.17"
+          "cisMapping": "10.17",
+          "justification": null
         },
         {
           "code": "TC-02",
@@ -367,7 +403,8 @@
           "verificationMethod": "Review server.xml for SHUTDOWN port configuration; verify firewall rules; test external accessibility.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "3.2"
+          "cisMapping": "3.2",
+          "justification": null
         },
         {
           "code": "TC-03",
@@ -376,7 +413,8 @@
           "verificationMethod": "Review server.xml and Host configuration for autoDeploy setting.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "9.2"
+          "cisMapping": "9.2",
+          "justification": null
         },
         {
           "code": "TC-04",
@@ -385,7 +423,8 @@
           "verificationMethod": "Audit webapps directory permissions; verify Tomcat user cannot write to deployment directories.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "4.7"
+          "cisMapping": "4.7",
+          "justification": null
         }
       ]
     },
@@ -401,7 +440,8 @@
           "verificationMethod": "Review firewall architecture documentation; verify multiple firewall layers; confirm default-deny policies.",
           "controlGroup": "DSCP1",
           "controlType": "technical",
-          "cisMapping": "9.1"
+          "cisMapping": "9.1",
+          "justification": null
         }
       ]
     },
@@ -418,7 +458,8 @@
           "verificationMethod": "Review IR plan documentation; verify contact lists current; check runbooks for common scenarios.",
           "controlGroup": "DSCP1",
           "controlType": "organizational",
-          "cisMapping": "17.1-17.9"
+          "cisMapping": "17.1-17.9",
+          "justification": null
         },
         {
           "code": "PS-02",
@@ -427,7 +468,8 @@
           "verificationMethod": "Review executed data sharing agreements; verify NDA coverage; confirm retention and destruction clauses",
           "controlGroup": "DSCP1",
           "controlType": "organizational",
-          "cisMapping": null
+          "cisMapping": null,
+          "justification": null
         },
         {
           "code": "PS-03",
@@ -436,7 +478,8 @@
           "verificationMethod": "Review offboarding procedures.",
           "controlGroup": "DSCP1",
           "controlType": "organizational",
-          "cisMapping": "5.3"
+          "cisMapping": "5.3",
+          "justification": null
         }
       ]
     }

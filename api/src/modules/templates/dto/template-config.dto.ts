@@ -87,6 +87,12 @@ export class TemplateConfigDto {
   maxCisMappingLength!: number;
 
   @ApiProperty({
+    example: 8000,
+    description: 'Maximum criterion justification length',
+  })
+  maxJustificationLength!: number;
+
+  @ApiProperty({
     example: 255,
     description: 'Maximum filename length',
   })
@@ -117,6 +123,8 @@ export class TemplateConfigDto {
     dto.maxVerificationMethodLength =
       TEMPLATE_VALIDATION_LIMITS.MAX_VERIFICATION_METHOD_LENGTH;
     dto.maxCisMappingLength = TEMPLATE_VALIDATION_LIMITS.MAX_CIS_MAPPING_LENGTH;
+    dto.maxJustificationLength =
+      TEMPLATE_VALIDATION_LIMITS.MAX_JUSTIFICATION_LENGTH;
     dto.maxFilenameLength = TEMPLATE_VALIDATION_LIMITS.MAX_FILENAME_LENGTH;
     return dto;
   }

@@ -191,7 +191,7 @@ export class AuditService {
 
   async validateHashChain(options?: {
     startId?: string | undefined;
-    endId?: string | undefined;
+    untilAuditLogId?: string | undefined;
     limit?: number | undefined;
   }): Promise<HashChainValidationResult> {
     const limit = options?.limit ?? 1000;
@@ -205,8 +205,10 @@ export class AuditService {
       qb.andWhere('audit.id >= :startId', { startId: options.startId });
     }
 
-    if (options?.endId) {
-      qb.andWhere('audit.id <= :endId', { endId: options.endId });
+    if (options?.untilAuditLogId) {
+      qb.andWhere('audit.id <= :untilAuditLogId', {
+        untilAuditLogId: options.untilAuditLogId,
+      });
     }
 
     const entries = await qb.getMany();
@@ -262,7 +264,7 @@ export class AuditService {
 
   async validateIntegrity(options?: {
     startId?: string | undefined;
-    endId?: string | undefined;
+    untilAuditLogId?: string | undefined;
     limit?: number | undefined;
   }): Promise<IntegrityValidationResult> {
     const hashChainResult = await this.validateHashChain(options);
@@ -281,8 +283,10 @@ export class AuditService {
         qb.andWhere('audit.id >= :startId', { startId: options.startId });
       }
 
-      if (options?.endId) {
-        qb.andWhere('audit.id <= :endId', { endId: options.endId });
+      if (options?.untilAuditLogId) {
+        qb.andWhere('audit.id <= :untilAuditLogId', {
+          untilAuditLogId: options.untilAuditLogId,
+        });
       }
 
       const entries = await qb.getMany();

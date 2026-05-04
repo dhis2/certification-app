@@ -1,6 +1,6 @@
 # DHIS2 Certification App
 
-DHIS2 certification assessments and W3C Verifiable Credential issuance.
+DHIS2 certification assessments, registry-backed certificates, and public verification by code.
 
 ## Prerequisites
 

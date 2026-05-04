@@ -18,11 +18,9 @@ interface CertificateEntry {
     revokedAt?: string | null
     revocationReason?: string | null
     revokedBy?: string | null
-    integrity?: {
-        hashValid: boolean
-        signatureValid: boolean
+    integrityStatus?: {
+        valid: boolean
     }
-    credential?: unknown
 }
 
 interface CertificatesListFilters {
@@ -66,14 +64,11 @@ export const useCertificatesList = (filters: CertificatesListFilters = {}): UseC
 
 interface UseCertificateActionsReturn {
     revokeCertificate: (id: string, reason: string) => Promise<void>
-    downloadCredential: (id: string) => Promise<unknown>
     loading: boolean
 }
 
 export const useCertificateActions = (): UseCertificateActionsReturn => {
     const [{ loading: revokeLoading }, executeRevoke] = useAuthAxios({ method: 'POST' }, { manual: true })
-
-    const [{ loading: downloadLoading }, executeDownload] = useAuthAxios({ method: 'GET' }, { manual: true })
 
     const revokeCertificate = useCallback(
         async (id: string, reason: string): Promise<void> => {
@@ -82,18 +77,9 @@ export const useCertificateActions = (): UseCertificateActionsReturn => {
         [executeRevoke]
     )
 
-    const downloadCredential = useCallback(
-        async (id: string): Promise<unknown> => {
-            const response = await executeDownload({ url: `/certificates/${id}/credential` })
-            return response.data
-        },
-        [executeDownload]
-    )
-
     return {
         revokeCertificate,
-        downloadCredential,
-        loading: revokeLoading || downloadLoading,
+        loading: revokeLoading,
     }
 }
 

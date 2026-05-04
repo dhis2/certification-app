@@ -30,9 +30,13 @@ export const useTemplate = (templateId: string | undefined): UseTemplateReturn =
     }, [execute, templateId])
 
     useEffect(() => {
-        if (templateId) {
-            refetch()
+        if (!templateId) {
+            setTemplate(null)
+            setError(null)
+            setLoading(false)
+            return
         }
+        void refetch()
     }, [templateId, refetch])
 
     useEffect(() => {

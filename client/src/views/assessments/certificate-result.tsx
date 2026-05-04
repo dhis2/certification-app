@@ -28,28 +28,15 @@ export const CertificateResult: FC = () => {
         }
     }, [resume, navigate, id])
 
-    const handleDownloadCertificate = useCallback(() => {
-        if (!certificate?.vcJson) {
-            console.error('No certificate data available')
-            return
+    const handleViewCertificate = useCallback(() => {
+        if (certificate?.id) {
+            navigate(`/admin/certificates/${certificate.id}`)
         }
-
-        const blob = new Blob([JSON.stringify(certificate.vcJson, null, 2)], {
-            type: 'application/ld+json',
-        })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `DHIS2-Certificate-${certificate.certificateNumber}.json`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-    }, [certificate])
+    }, [certificate, navigate])
 
     if (loading || certLoading) {
         return (
-            <div className={styles.container}>
+            <div className={`dscp-surface ${styles.container}`}>
                 <div className={styles.loadingContainer}>
                     <CircularLoader />
                 </div>
@@ -59,7 +46,7 @@ export const CertificateResult: FC = () => {
 
     if (error || !submission) {
         return (
-            <div className={styles.container}>
+            <div className={`dscp-surface ${styles.container}`}>
                 <Heading title="Certificate Result" />
                 <NoticeBox error title="Error">
                     {error?.message || 'Failed to load certificate'}
@@ -79,7 +66,7 @@ export const CertificateResult: FC = () => {
     }
 
     return (
-        <div className={styles.container}>
+        <div className={`dscp-surface ${styles.container}`}>
             <div className={styles.header}>
                 <Button small secondary onClick={() => navigate('/assessments')}>
                     ← Back to Assessments
@@ -97,8 +84,17 @@ export const CertificateResult: FC = () => {
             {isPassed && (
                 <Card className={styles.certificateCard}>
                     <div className={styles.certificateHeader}>
-                        <div className={styles.certificateIcon}></div>
-                        <h2 className={styles.certificateTitle}>DHIS2 Server Certification</h2>
+                        <div className={styles.certificateIcon} aria-hidden>
+                            ✓
+                        </div>
+                        <h2 className={styles.certificateTitle}>
+                            DHIS2 Server Certification
+                            {certificate?.isRevoked && (
+                                <span className={styles.revokedBadge} role="status">
+                                    Revoked
+                                </span>
+                            )}
+                        </h2>
                     </div>
 
                     <div className={styles.certificateDetails}>
@@ -162,8 +158,8 @@ export const CertificateResult: FC = () => {
 
                     <div className={styles.certificateActions}>
                         <ButtonStrip>
-                            <Button primary onClick={handleDownloadCertificate} disabled={!certificate} data-test="download-certificate">
-                                Download Certificate (JSON-LD)
+                            <Button primary onClick={handleViewCertificate} disabled={!certificate} data-test="view-certificate">
+                                View certificate
                             </Button>
                             <Button onClick={() => window.print()}>Print</Button>
                         </ButtonStrip>

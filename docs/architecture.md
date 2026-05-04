@@ -1,6 +1,14 @@
 # Architecture
 
-## System Context
+## Overview
+
+The application supports **DHIS2 server and metadata certification**: assessment templates, submissions, scoring, **registry-backed certificates** (certificate number + verification code + PostgreSQL), and **public verification** without authentication.
+
+**Stack:** React client (Vite, DHIS2 UI), NestJS API, PostgreSQL, Redis (sessions, throttling, caching), optional **OpenBao/Vault** for transit encryption used by features such as OTP.
+
+---
+
+## System context
 
 ```mermaid
 graph TB
@@ -23,7 +31,7 @@ graph TB
         Redis[(Redis)]
     end
 
-    Vault["OpenBao Vault<br/>(optional)"]
+    Vault["OpenBao Vault<br/>(optional transit)"]
 
     User --> Traefik
     Public --> Traefik
@@ -34,7 +42,9 @@ graph TB
     API --> Vault
 ```
 
-## Docker Services & Networks
+---
+
+## Docker services and networks
 
 ```mermaid
 graph LR
@@ -65,7 +75,11 @@ graph LR
 
 **Startup order:** DB → Migrations (runs to completion) → Redis → API → Client
 
-## API Modules
+---
+
+## API modules
+
+`AppModule` wires feature modules below. There is **no** signing/VC module; `CertificatesModule` persists rows and calls `AuditService` for lifecycle events.
 
 ```mermaid
 graph TD
@@ -84,7 +98,6 @@ graph TD
     App --> Sub[SubmissionsModule]
     App --> Tmpl[TemplatesModule]
     App --> Cert[CertificatesModule]
-    App --> Sign[SigningModule]
     App --> Audit[AuditModule]
     App --> Mail[MailModule]
     App --> Mon[MonitoringModule]
@@ -93,7 +106,6 @@ graph TD
     Sub --> Impl
     Sub --> Tmpl
     Cert --> Sub
-    Cert --> Sign
 
     style Config fill:#f5f5f5,stroke:#999
     style Throttler fill:#f5f5f5,stroke:#999
@@ -103,7 +115,9 @@ graph TD
     style VaultM fill:#f5f5f5,stroke:#999
 ```
 
-## Entity Relationships
+---
+
+## Entity relationships
 
 ```mermaid
 erDiagram
@@ -126,7 +140,11 @@ erDiagram
     AuditLog }o--o| User : "acted by"
 ```
 
-## Authentication Flow
+**Certificate row (conceptual):** identifiers (`certificateNumber`, `verificationCode`), validity window, revocation flags, scoring snapshot fields — no VC JSON, signature, or status-list index.
+
+---
+
+## Authentication flow
 
 ```mermaid
 sequenceDiagram
@@ -148,7 +166,7 @@ sequenceDiagram
     A->>R: Create session
     A-->>C: {accessToken, refreshToken}
 
-    Note over C: Stores in localStorage
+    Note over C: Tokens persisted in localStorage<br/>(see client use-auth-axios)
 
     C->>A: GET /api/v1/... (Bearer token)
     A->>R: Check blacklist
@@ -166,7 +184,9 @@ sequenceDiagram
     A->>R: Delete session
 ```
 
-## Assessment Workflow
+---
+
+## Assessment workflow
 
 ```mermaid
 stateDiagram-v2
@@ -188,52 +208,49 @@ stateDiagram-v2
 
 **Steps:**
 
-1. Admin creates an Implementation (DHIS2 server to certify)
-2. Assessor creates a Submission against a Template
-3. Assessor fills SubmissionResponses (scores each Criterion)
-4. Submission finalized, scored against Template thresholds
-5. If PASSED → admin issues a Certificate (W3C Verifiable Credential)
+1. Admin creates an Implementation (DHIS2 server to certify).
+2. Assessor creates a Submission against a Template.
+3. Assessor fills `SubmissionResponse` rows (scores each Criterion).
+4. Submission is finalized and scored against Template thresholds.
+5. If **PASSED** → admin issues a **Certificate** (persisted in the registry with verification code; `AuditService` logs `CERTIFICATE_ISSUED`).
 
-## Credential Issuance
+---
+
+## Certificate issuance (registry-backed)
 
 ```mermaid
 sequenceDiagram
     participant Admin
     participant CertSvc as CertificatesService
-    participant IssSvc as CredentialIssuanceService
-    participant SignSvc as SigningService
+    participant Audit as AuditService
     participant DB
 
     Admin->>CertSvc: issueCertificate(submissionId)
     CertSvc->>DB: Load submission + responses + template (SERIALIZABLE tx)
     CertSvc->>CertSvc: Verify status = PASSED
-
-    CertSvc->>IssSvc: issueCredential(data, statusListIndex)
-    IssSvc->>IssSvc: Build W3C VC JSON
-    Note over IssSvc: type: VerifiableCredential,<br/>OpenBadgeCredential,<br/>DHIS2ServerCertification
-
-    IssSvc->>IssSvc: Canonicalize (RDFC-1.0)
-    IssSvc->>IssSvc: computeHash (SHA-256)
-    IssSvc->>SignSvc: sign(payload)
-
-    alt Software keys
-        SignSvc->>SignSvc: Ed25519 sign with PEM key
-    else Vault
-        SignSvc->>SignSvc: Transit engine sign
-    end
-
-    IssSvc->>IssSvc: Attach DataIntegrityProof (eddsa-rdfc-2022)
-    IssSvc-->>CertSvc: {credential, hash, signature, keyVersion}
-
-    CertSvc->>DB: Save certificate + vcJson
+    CertSvc->>CertSvc: Assign certificateNumber + verificationCode
+    CertSvc->>DB: INSERT certificate row
+    CertSvc->>Audit: CERTIFICATE_ISSUED
     CertSvc-->>Admin: Certificate with verificationCode
 ```
 
-**Public verification:** `GET /certificates/verify/:code` — no auth required. Checks: exists, not revoked, not expired, hash integrity, signature valid.
+**Public verification:** `GET /api/v1/verify/:code` and related verify routes — **no auth**. Response `valid` reflects registry state: row exists, `!isRevoked`, and current date within `validFrom`–`validUntil`.
 
-**Revocation:** BitstringStatusList (W3C standard). Each certificate gets a `statusListIndex`. Revocation flips the bit; verifiers check the published status list.
+**Revocation:** Admin revokes via API; row updated with `isRevoked`, timestamps, reason. `AuditService` records `CERTIFICATE_REVOKED`. Verification can log `CERTIFICATE_VERIFIED` as implemented in the service.
 
-## CI/CD Pipeline
+**Vault:** When enabled, transit APIs may be used for **encryption/signing of non-certificate payloads** (for example OTP secrets). They are **not** used to build or verify W3C credentials for certificates.
+
+---
+
+## Audit and tamper evidence
+
+- **`AuditLog`:** Append-only style usage with `prevHash` / `currHash` chain.
+- **`AUDIT_LOG_HMAC_KEY`:** Optional HMAC over entries via `AuditIntegrityService` where configured; production should set a stable key so signatures survive restarts.
+- **Admin:** `GET /api/v1/audit/validate` and `GET /api/v1/audit/integrity/validate` support bounded checks; upper bound query parameter is **`untilAuditLogId`** (not `endId`).
+
+---
+
+## CI/CD pipeline
 
 ```mermaid
 graph LR
@@ -260,9 +277,11 @@ graph LR
     style RB fill:#ffebee,stroke:#f44336
 ```
 
-**Environment promotion:** staging (auto) → E2E gate → production (manual approval) → smoke test → auto-rollback on failure.
+**Environment promotion:** staging (auto) → E2E gate → production (manual approval) → smoke test → auto-rollback on failure. See also `deploy.yml` for path-to-production details.
 
-## API Documentation
+---
 
-- Swagger documentation at `http://localhost:3001/api/v1/docs`
-- OpenAPI spec at `http://localhost:3001/api/v1/openapi.json`
+## API documentation
+
+- **Swagger UI** (non-production only): `http://localhost:3001/api/v1/docs` — served when `NODE_ENV !== 'production'`.
+- OpenAPI document is built in-process with `SwaggerModule.createDocument`; there is **no** separate mounted `openapi.json` route in the default bootstrap — export the spec from the Swagger UI if needed, or add a small JSON endpoint in `main.ts` if the team standard requires it.

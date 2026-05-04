@@ -74,10 +74,10 @@ export class ValidateHashChainDto {
   @IsString()
   startId?: string;
 
-  @ApiPropertyOptional({ description: 'End at this audit log ID' })
+  @ApiPropertyOptional({ description: 'Upper bound audit log ID (inclusive)' })
   @IsOptional()
   @IsString()
-  endId?: string;
+  untilAuditLogId?: string;
 
   @ApiPropertyOptional({
     description: 'Maximum number of entries to validate',

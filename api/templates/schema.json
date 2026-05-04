@@ -39,6 +39,25 @@
       "maxItems": 50,
       "items": { "$ref": "#/definitions/category" },
       "description": "Assessment categories"
+    },
+    "complianceStatusScoring": {
+      "type": "object",
+      "description": "Optional; if set must match server canonical scoring map",
+      "additionalProperties": false,
+      "required": [
+        "compliant",
+        "partially_compliant",
+        "non_compliant",
+        "not_applicable",
+        "not_tested"
+      ],
+      "properties": {
+        "compliant": { "type": "integer" },
+        "partially_compliant": { "type": "integer" },
+        "non_compliant": { "type": "integer" },
+        "not_applicable": { "type": ["integer", "null"] },
+        "not_tested": { "type": "integer" }
+      }
     }
   },
   "definitions": {
@@ -134,6 +153,11 @@
           "type": ["string", "null"],
           "maxLength": 50,
           "description": "CIS Controls reference"
+        },
+        "justification": {
+          "type": ["string", "null"],
+          "maxLength": 8000,
+          "description": "Rationale / regulatory context for the control"
         },
         "weight": {
           "type": "number",

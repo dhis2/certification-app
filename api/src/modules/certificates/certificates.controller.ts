@@ -7,7 +7,6 @@ import {
   Query,
   UseInterceptors,
   ParseUUIDPipe,
-  Header,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,8 +26,6 @@ import {
   RevokeCertificateDto,
   CertificateResponseDto,
   VerificationResultDto,
-  CredentialResponseDto,
-  IntegrityStatusDto,
 } from './dto';
 import {
   CacheControl,
@@ -124,7 +121,7 @@ export class CertificatesController {
   @UseInterceptors(CacheControlInterceptor)
   @CacheControl({ maxAge: 60, mustRevalidate: true })
   @ApiOperation({
-    summary: 'Get certificate details with integrity verification',
+    summary: 'Get certificate details with registry validity metadata',
   })
   @ApiResponse({ status: 200, type: CertificateResponseDto })
   async findOne(
@@ -132,24 +129,7 @@ export class CertificatesController {
   ): Promise<CertificateResponseDto> {
     const { certificate, integrityStatus } =
       await this.certificatesService.findOneWithVerification(id);
-    return CertificateResponseDto.fromEntity(
-      certificate,
-      integrityStatus as IntegrityStatusDto,
-    );
-  }
-
-  @Get(':id/credential')
-  @Roles(UserRole.ADMIN, UserRole.ASSESSOR)
-  @UseInterceptors(CacheControlInterceptor)
-  @CacheControl({ maxAge: 3600, mustRevalidate: true })
-  @Header('Content-Type', 'application/vc+ld+json')
-  @ApiOperation({ summary: 'Get W3C Verifiable Credential JSON' })
-  @ApiResponse({ status: 200, type: CredentialResponseDto })
-  async getCredential(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<CredentialResponseDto> {
-    const certificate = await this.certificatesService.findOne(id);
-    return certificate.vcJson as CredentialResponseDto;
+    return CertificateResponseDto.fromEntity(certificate, integrityStatus);
   }
 
   @Post(':id/revoke')
@@ -235,8 +215,6 @@ export class VerificationController {
           found: false,
           notRevoked: false,
           notExpired: false,
-          integrityValid: false,
-          signatureValid: false,
         },
       };
     }

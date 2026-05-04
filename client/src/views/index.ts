@@ -8,7 +8,7 @@ export { AssessmentsList, CreateAssessment, AssessmentForm, AssessmentSummary, C
 
 export { VerifyCertificate } from './verify/index.ts'
 
-export { TemplatesList, TemplateDetail, TemplateImport, TemplateDiff } from './templates/index.ts'
+export { TemplatesList, TemplateDetail, TemplatePreview, TemplateImport, TemplateDiff } from './templates/index.ts'
 
 export { UsersList, UserDetail } from './users/index.ts'
 
@@ -17,5 +17,3 @@ export { CertificatesList, CertificateDetail } from './certificates/index.ts'
 export { MonitoringDashboard } from './monitoring/index.ts'
 
 export { AuditLogs, AuditLogDetail } from './audit/index.ts'
-
-export { SigningKeys } from './signing-keys/index.ts'

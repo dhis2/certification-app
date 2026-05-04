@@ -1,32 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Certificate } from '../entities/certificate.entity';
 
-/**
- * Integrity verification status for a certificate.
- *
- * Per NIST SP 800-53 SI-7 (Software, Firmware, and Information Integrity):
- * Integrity verification should be performed and reported to detect tampering.
- */
+/** Whether the certificate is currently valid for verification (not revoked, not past validUntil). */
 export class IntegrityStatusDto {
   @ApiProperty({
-    description: 'Whether integrity verification was performed',
+    description:
+      'True when the certificate is not revoked and the current date is on or before validUntil',
   })
-  verified!: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Whether the hash integrity check passed',
-  })
-  integrityValid?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Whether the cryptographic signature is valid',
-  })
-  signatureValid?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Error message if verification failed',
-  })
-  error?: string;
+  valid!: boolean;
 }
 
 export class CertificateResponseDto {
@@ -58,7 +39,7 @@ export class CertificateResponseDto {
   validUntil!: string;
 
   @ApiProperty()
-  verificationCode!: string | null;
+  verificationCode!: string;
 
   @ApiProperty()
   isRevoked!: boolean;
@@ -78,12 +59,6 @@ export class CertificateResponseDto {
   @ApiPropertyOptional()
   controlGroup?: string;
 
-  @ApiPropertyOptional({
-    type: Object,
-    description: 'W3C Verifiable Credential JSON-LD',
-  })
-  vcJson?: unknown;
-
   @ApiPropertyOptional()
   implementation?: {
     id: string;
@@ -93,7 +68,7 @@ export class CertificateResponseDto {
   @ApiPropertyOptional({
     type: IntegrityStatusDto,
     description:
-      'Integrity verification status (only included when verification is performed)',
+      'Registry validity (included when the service attaches verification metadata)',
   })
   integrityStatus?: IntegrityStatusDto;
 
@@ -109,7 +84,6 @@ export class CertificateResponseDto {
     dto.certificateNumber = cert.certificateNumber;
     dto.certificationResult = cert.certificationResult;
     dto.finalScore = cert.finalScore;
-    // Handle date fields - PostgreSQL date type may return string or Date
     dto.validFrom =
       cert.validFrom instanceof Date
         ? cert.validFrom.toISOString()
@@ -128,7 +102,6 @@ export class CertificateResponseDto {
         : String(cert.issuedAt);
     dto.issuedById = cert.issuedById;
     dto.controlGroup = cert.controlGroup;
-    dto.vcJson = cert.vcJson;
     if (cert.implementation) {
       dto.implementation = {
         id: cert.implementation.id,
@@ -156,40 +129,5 @@ export class VerificationResultDto {
     found: boolean;
     notRevoked: boolean;
     notExpired: boolean;
-    integrityValid: boolean;
-    signatureValid: boolean;
   };
-}
-
-export class CredentialResponseDto {
-  @ApiProperty()
-  '@context'!: string[];
-
-  @ApiProperty()
-  id!: string;
-
-  @ApiProperty()
-  type!: string[];
-
-  @ApiProperty()
-  issuer!: {
-    id: string;
-    type: string;
-    name: string;
-  };
-
-  @ApiProperty()
-  validFrom!: string;
-
-  @ApiProperty()
-  validUntil!: string;
-
-  @ApiProperty()
-  credentialSubject!: unknown;
-
-  @ApiProperty()
-  credentialStatus!: unknown;
-
-  @ApiPropertyOptional()
-  proof?: unknown;
 }

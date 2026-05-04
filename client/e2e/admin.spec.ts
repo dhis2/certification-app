@@ -135,37 +135,12 @@ test.describe('Admin Features', () => {
         })
     })
 
-    test.describe('Signing Keys', () => {
-        test('should display signing keys page', async ({ adminPage }) => {
-            const dashboard = new DashboardPage(adminPage)
-            await dashboard.goto()
-            await dashboard.navigateTo('keys')
-
-            await expect(adminPage.getByRole('heading', { name: /signing key management/i })).toBeVisible()
-        })
-
-        test('should display key health indicators', async ({ adminPage }) => {
-            const dashboard = new DashboardPage(adminPage)
-            await dashboard.goto()
-            await dashboard.navigateTo('keys')
-
-            // Key info may or may not be present
-            const hasKeyInfo = await adminPage
-                .locator('[class*="key"], [class*="health"], [class*="status"]')
-                .first()
-                .isVisible()
-                .catch(() => false)
-            expect(hasKeyInfo === true || hasKeyInfo === false).toBe(true)
-        })
-    })
-
     test.describe('Access Control', () => {
         const adminRoutes = [
             { path: '/admin/users', name: 'admin/users' },
             { path: '/admin/certificates', name: 'admin/certificates' },
             { path: '/admin/monitoring', name: 'admin/monitoring' },
             { path: '/admin/audit', name: 'admin/audit' },
-            { path: '/admin/keys', name: 'admin/keys' },
         ]
 
         for (const route of adminRoutes) {

@@ -153,7 +153,7 @@ async function bootstrap() {
     const config = new DocumentBuilder()
       .setTitle('DHIS2 Server Certification API')
       .setDescription(
-        'API for DHIS2 server certification Program (with W3C Verifiable Credentials)',
+        'API for the DHIS2 server certification program (registry-backed certificates, audit chain)',
       )
       .setVersion('1.0')
       .addBearerAuth(

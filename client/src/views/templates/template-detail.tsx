@@ -111,6 +111,9 @@ export const TemplateDetail: FC = () => {
                     <Button secondary onClick={() => navigate('/templates')}>
                         Back to List
                     </Button>
+                    <Button secondary onClick={() => navigate(`/templates/${id}/preview`)} data-test="template-dscp-preview">
+                        DSCP preview
+                    </Button>
                     <Button onClick={handleExport} loading={exportLoading} data-test="export-template">
                         Export YAML
                     </Button>

@@ -175,7 +175,7 @@ describe('AuditService', () => {
           Object.assign({}, entry, {
             id: '2',
             createdAt: new Date(),
-          }) as AuditLog,
+          }),
         );
       });
 
@@ -205,7 +205,7 @@ describe('AuditService', () => {
           Object.assign({}, entry, {
             id: '1',
             createdAt: new Date(),
-          }) as AuditLog,
+          }),
         );
       });
 

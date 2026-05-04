@@ -1,7 +1,36 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ControlGroup, ControlType } from '../../../common/enums';
 import { AssessmentTemplate } from '../entities/assessment-template.entity';
 import { AssessmentCategory } from '../entities/assessment-category.entity';
 import { Criterion } from '../entities/criterion.entity';
+import { COMPLIANCE_STATUS_SCORING } from '../constants/compliance-scoring';
+
+export class ComplianceStatusScoringDto {
+  @ApiProperty({ example: 100 })
+  compliant!: number;
+
+  @ApiProperty({ example: 50 })
+  partially_compliant!: number;
+
+  @ApiProperty({ example: 0 })
+  non_compliant!: number;
+
+  @ApiProperty({ nullable: true, example: null })
+  not_applicable!: number | null;
+
+  @ApiProperty({ example: 0 })
+  not_tested!: number;
+
+  static fromConstants(): ComplianceStatusScoringDto {
+    const dto = new ComplianceStatusScoringDto();
+    dto.compliant = COMPLIANCE_STATUS_SCORING.compliant;
+    dto.partially_compliant = COMPLIANCE_STATUS_SCORING.partially_compliant;
+    dto.non_compliant = COMPLIANCE_STATUS_SCORING.non_compliant;
+    dto.not_applicable = COMPLIANCE_STATUS_SCORING.not_applicable;
+    dto.not_tested = COMPLIANCE_STATUS_SCORING.not_tested;
+    return dto;
+  }
+}
 
 export class CriterionResponseDto {
   @ApiProperty()
@@ -46,6 +75,24 @@ export class CriterionResponseDto {
   @ApiProperty()
   sortOrder!: number;
 
+  @ApiProperty({ enum: ControlGroup })
+  controlGroup!: ControlGroup;
+
+  @ApiProperty({ enum: ControlType })
+  controlType!: ControlType;
+
+  @ApiPropertyOptional()
+  cisMapping!: string | null;
+
+  @ApiPropertyOptional()
+  verificationMethod!: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Rationale for the control (regulatory context / why it matters)',
+  })
+  justification!: string | null;
+
   @ApiProperty()
   createdAt!: Date;
 
@@ -65,6 +112,11 @@ export class CriterionResponseDto {
     dto.evidenceRequired = criterion.evidenceRequired;
     dto.evidenceDescription = criterion.evidenceDescription;
     dto.sortOrder = criterion.sortOrder;
+    dto.controlGroup = criterion.controlGroup;
+    dto.controlType = criterion.controlType;
+    dto.cisMapping = criterion.cisMapping;
+    dto.verificationMethod = criterion.verificationMethod;
+    dto.justification = criterion.justification;
     dto.createdAt = criterion.createdAt;
     return dto;
   }
@@ -125,8 +177,20 @@ export class TemplateResponseDto {
   @ApiProperty()
   name!: string;
 
+  @ApiProperty({
+    description:
+      'Equals `name`. Included for parity with reference `dscp.mustache` `{{templateName}}`.',
+  })
+  templateName!: string;
+
   @ApiPropertyOptional()
   description!: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Equals `description`. Parity with `dscp.mustache` `{{templateDescription}}`.',
+  })
+  templateDescription!: string | null;
 
   @ApiProperty()
   version!: number;
@@ -155,6 +219,9 @@ export class TemplateResponseDto {
   @ApiPropertyOptional({ type: [CategoryResponseDto] })
   categories?: CategoryResponseDto[];
 
+  @ApiProperty({ type: ComplianceStatusScoringDto })
+  complianceStatusScoring!: ComplianceStatusScoringDto;
+
   static fromEntity(
     template: AssessmentTemplate,
     includeCategories = false,
@@ -162,7 +229,9 @@ export class TemplateResponseDto {
     const dto = new TemplateResponseDto();
     dto.id = template.id;
     dto.name = template.name;
+    dto.templateName = template.name;
     dto.description = template.description;
+    dto.templateDescription = template.description;
     dto.version = template.version;
     dto.isPublished = template.isPublished;
     dto.parentVersionId = template.parentVersionId;
@@ -171,6 +240,7 @@ export class TemplateResponseDto {
     dto.createdById = template.createdById;
     dto.createdAt = template.createdAt;
     dto.updatedAt = template.updatedAt;
+    dto.complianceStatusScoring = ComplianceStatusScoringDto.fromConstants();
 
     if (includeCategories) {
       dto.categories = template.categories

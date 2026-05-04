@@ -1,7 +1,7 @@
-import { Button, Card, CircularLoader, NoticeBox } from '@dhis2/ui'
+import { Button, CircularLoader, NoticeBox } from '@dhis2/ui'
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Heading, ConfirmationModal } from '../../components/index.ts'
+import { ConfirmationModal } from '../../components/index.ts'
 import { useAuthAxios } from '../../hooks/use-auth-axios.ts'
 import { useCertificateActions } from '../../hooks/use-certificates.ts'
 import type { CertificateEntry } from '../../hooks/use-certificates.ts'
@@ -17,9 +17,8 @@ export const CertificateDetail = () => {
 
     const [{ data, loading: fetchLoading, error: fetchError }, execute] = useAuthAxios<CertificateEntry>({ url: id ? `/certificates/${id}` : '', method: 'GET' }, { manual: true })
 
-    const { revokeCertificate, downloadCredential, loading: actionLoading } = useCertificateActions()
+    const { revokeCertificate, loading: actionLoading } = useCertificateActions()
 
-    const [showCredential, setShowCredential] = useState(false)
     const [revokeReason, setRevokeReason] = useState('')
     const [showRevokeModal, setShowRevokeModal] = useState(false)
     const [actionError, setActionError] = useState('')
@@ -75,33 +74,19 @@ export const CertificateDetail = () => {
         }
     }, [id, revokeReason, revokeCertificate, refetch])
 
-    const handleDownload = useCallback(async () => {
-        if (!id || !certificate) {
-            return
-        }
-        try {
-            const credential = await downloadCredential(id)
-            const blob = new Blob([JSON.stringify(credential, null, 2)], { type: 'application/json' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `certificate-${certificate.certificateNumber}.json`
-            a.click()
-            URL.revokeObjectURL(url)
-        } catch {}
-    }, [id, certificate, downloadCredential])
-
     if (loading) {
         return (
-            <div className={styles.loadingContainer}>
-                <CircularLoader />
+            <div className={`dscp-surface ${styles.loadingOuter}`}>
+                <div className={styles.loadingContainer}>
+                    <CircularLoader />
+                </div>
             </div>
         )
     }
 
     if (error || !certificate) {
         return (
-            <div className={styles.container}>
+            <div className={`dscp-surface ${styles.container}`}>
                 <NoticeBox error title="Error">
                     {error?.message || 'Certificate not found'}
                 </NoticeBox>
@@ -113,23 +98,48 @@ export const CertificateDetail = () => {
 
     const getStatusBadge = () => {
         if (certificate.isRevoked) {
-            return <span className={`${styles.badge} ${styles.badgeRevoked}`}>Revoked</span>
+            return (
+                <span className={`${styles.pill} ${styles.pillRevoked}`} role="status">
+                    Revoked
+                </span>
+            )
         }
         if (isExpired) {
-            return <span className={`${styles.badge} ${styles.badgeExpired}`}>Expired</span>
+            return (
+                <span className={`${styles.pill} ${styles.pillExpired}`} role="status">
+                    Expired
+                </span>
+            )
         }
-        return <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
+        return (
+            <span className={`${styles.pill} ${styles.pillActive}`} role="status">
+                Active
+            </span>
+        )
     }
 
     const isRevoked = certificate.isRevoked
+    const registryValid = certificate.integrityStatus?.valid
 
     return (
-        <div className={styles.container}>
+        <div className={`dscp-surface ${styles.container}`}>
             <Link to="/admin/certificates" className={styles.backLink}>
                 &larr; Back to Certificates
             </Link>
 
-            <Heading title={`Certificate ${certificate.certificateNumber}`} />
+            <header className={styles.hero}>
+                <div className={styles.heroInner}>
+                    <p className={styles.heroEyebrow}>DHIS2 server certification</p>
+                    <h1 className={styles.heroTitle}>Certificate</h1>
+                    <div className={styles.pillRow}>
+                        <span className={styles.pillMono}>{certificate.certificateNumber}</span>
+                        {getStatusBadge()}
+                        <span className={styles.pillMuted}>
+                            Valid {formatDateTime(certificate.validFrom)} — {formatDateTime(certificate.validUntil)}
+                        </span>
+                    </div>
+                </div>
+            </header>
 
             {actionSuccess && (
                 <NoticeBox valid title="Success">
@@ -142,104 +152,90 @@ export const CertificateDetail = () => {
                 </NoticeBox>
             )}
 
-            <Card className={styles.card}>
-                <h3>Certificate Information</h3>
-                <div className={styles.infoGrid}>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Certificate Number</span>
-                        <span className={styles.infoValue}>{certificate.certificateNumber}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Status</span>
-                        <span className={styles.infoValue}>{getStatusBadge()}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Score</span>
-                        <span className={styles.infoValue}>{Math.round(certificate.finalScore)}%</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Control Group</span>
-                        <span className={styles.infoValue}>{certificate.controlGroup || '-'}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Valid From</span>
-                        <span className={styles.infoValue}>{formatDateTime(certificate.validFrom)}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Valid Until</span>
-                        <span className={styles.infoValue}>{formatDateTime(certificate.validUntil)}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Verification Code</span>
-                        <span className={styles.infoValue}>{certificate.verificationCode}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Issued At</span>
-                        <span className={styles.infoValue}>{formatDateTime(certificate.issuedAt)}</span>
-                    </div>
-                </div>
-            </Card>
+            <section className={styles.panel} aria-labelledby="cert-summary-heading">
+                <h2 id="cert-summary-heading" className={styles.panelTitle}>
+                    Summary
+                </h2>
+                <table className={styles.summaryTable}>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Certificate number</th>
+                            <td>
+                                <code className={styles.code}>{certificate.certificateNumber}</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Status</th>
+                            <td>{getStatusBadge()}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Score</th>
+                            <td>{Math.round(certificate.finalScore)}%</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Valid from</th>
+                            <td>{formatDateTime(certificate.validFrom)}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Valid until</th>
+                            <td>{formatDateTime(certificate.validUntil)}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Control group</th>
+                            <td>{certificate.controlGroup || '—'}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Verification code</th>
+                            <td>
+                                <code className={styles.code}>{certificate.verificationCode}</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Issued</th>
+                            <td>{formatDateTime(certificate.issuedAt)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
 
-            {certificate.integrity && (
-                <Card className={styles.card}>
-                    <h3>Integrity Status</h3>
-                    <div className={styles.infoGrid}>
-                        <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>Hash Chain</span>
-                            <span className={styles.infoValue}>
-                                <span className={`${styles.badge} ${certificate.integrity.hashValid ? styles.badgeValid : styles.badgeInvalid}`}>
-                                    {certificate.integrity.hashValid ? 'Valid' : 'Invalid'}
-                                </span>
-                            </span>
-                        </div>
-                        <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>Signature</span>
-                            <span className={styles.infoValue}>
-                                <span className={`${styles.badge} ${certificate.integrity.signatureValid ? styles.badgeValid : styles.badgeInvalid}`}>
-                                    {certificate.integrity.signatureValid ? 'Valid' : 'Invalid'}
-                                </span>
-                            </span>
-                        </div>
-                    </div>
-                </Card>
+            {registryValid !== undefined && (
+                <section className={styles.panel} aria-labelledby="registry-heading">
+                    <h2 id="registry-heading" className={styles.panelTitle}>
+                        Registry status
+                    </h2>
+                    <p className={styles.registryLine}>
+                        Valid for public verification: <span className={`${styles.pill} ${registryValid ? styles.pillOk : styles.pillWarn}`}>{registryValid ? 'Yes' : 'No'}</span>
+                    </p>
+                </section>
             )}
 
-            <Card className={styles.card}>
-                <h3>W3C Verifiable Credential</h3>
-                <Button small onClick={handleDownload} loading={actionLoading}>
-                    Download VC JSON
-                </Button>
-                <div className={styles.credentialPreview}>
-                    <button className={styles.credentialToggle} onClick={() => setShowCredential(!showCredential)}>
-                        {showCredential ? '▼ Hide' : '▶ Show'} Credential JSON
-                    </button>
-                    {showCredential && certificate.credential && <pre className={styles.credentialJson}>{JSON.stringify(certificate.credential, null, 2)}</pre>}
-                </div>
-            </Card>
-
             {isRevoked ? (
-                <Card className={styles.card}>
-                    <h3>Revocation Information</h3>
-                    <div className={styles.revocationInfo}>
-                        <div className={styles.infoGrid}>
-                            <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>Revoked At</span>
-                                <span className={styles.infoValue}>{formatDateTime(certificate.revokedAt)}</span>
-                            </div>
-                            <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>Revoked By</span>
-                                <span className={styles.infoValue}>{certificate.revokedBy || '-'}</span>
-                            </div>
-                            <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>Reason</span>
-                                <span className={styles.infoValue}>{certificate.revocationReason || '-'}</span>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
+                <section className={`${styles.panel} ${styles.revocationPanel}`} aria-labelledby="revocation-heading">
+                    <h2 id="revocation-heading" className={styles.panelTitle}>
+                        Revocation
+                    </h2>
+                    <table className={styles.summaryTable}>
+                        <tbody>
+                            <tr>
+                                <th scope="row">Revoked at</th>
+                                <td>{formatDateTime(certificate.revokedAt)}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Revoked by</th>
+                                <td>{certificate.revokedBy || '—'}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Reason</th>
+                                <td>{certificate.revocationReason || '—'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
             ) : (
-                <Card className={styles.card}>
-                    <h3>Revoke Certificate</h3>
+                <section className={styles.panel} aria-labelledby="revoke-action-heading">
+                    <h2 id="revoke-action-heading" className={styles.panelTitle}>
+                        Revoke certificate
+                    </h2>
                     <div className={styles.revokeForm}>
                         <label>
                             <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--colors-grey700)', marginBottom: '4px' }}>
@@ -251,7 +247,7 @@ export const CertificateDetail = () => {
                             Revoke Certificate
                         </Button>
                     </div>
-                </Card>
+                </section>
             )}
 
             {showRevokeModal && (

@@ -125,10 +125,6 @@ services:
       JWT_TOKEN_ISSUER: ${JWT_TOKEN_ISSUER?Variable not set}
       JWT_ALGORITHM: "HS256"
       CORS_ORIGIN: ${CORS_ORIGIN?Variable not set}
-      SIGNING_KEY_PATH: ${SIGNING_KEY_PATH?Variable not set}
-      SIGNING_PUBLIC_KEY_PATH: ${SIGNING_PUBLIC_KEY_PATH?Variable not set}
-      SIGNING_KEY_PASSPHRASE: ${SIGNING_KEY_PASSPHRASE?Variable not set}
-      USE_VAULT: ${USE_VAULT?Variable not set}
     env_file:
       - .env
     networks:

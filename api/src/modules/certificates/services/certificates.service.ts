@@ -9,14 +9,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
+import * as crypto from 'crypto';
 import { Certificate } from '../entities/certificate.entity';
 import { Submission } from '../../submissions/entities/submission.entity';
 import { SubmissionStatus, CertificationResult } from '../../../common/enums';
-import { SubmissionResponse } from '../../submissions/entities/submission-response.entity';
-import { AssessmentCategory } from '../../templates/entities/assessment-category.entity';
 import { Implementation } from '../../implementations/entities/implementation.entity';
-import { CredentialIssuanceService } from './credential-issuance.service';
-import { StatusListCacheService } from './status-list-cache.service';
 import { AuditService, AuditEventType, AuditAction } from '../../audit';
 import { isUniqueViolation } from '../../../shared/utils/error.utils';
 import {
@@ -28,6 +25,8 @@ import {
   CursorPaginationOptions,
   paginate,
 } from 'src/shared/pagination';
+
+const VERIFICATION_CODE_BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 export interface FindAllCertificatesOptions extends CursorPaginationOptions {
   implementationId?: string;
@@ -50,14 +49,8 @@ export class CertificatesService implements OnModuleInit {
     private readonly certificateRepo: Repository<Certificate>,
     @InjectRepository(Submission)
     private readonly submissionRepo: Repository<Submission>,
-    @InjectRepository(SubmissionResponse)
-    private readonly responseRepo: Repository<SubmissionResponse>,
-    @InjectRepository(AssessmentCategory)
-    private readonly categoryRepo: Repository<AssessmentCategory>,
     @InjectRepository(Implementation)
     private readonly implementationRepo: Repository<Implementation>,
-    private readonly credentialIssuance: CredentialIssuanceService,
-    private readonly statusListCache: StatusListCacheService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
@@ -103,6 +96,39 @@ export class CertificatesService implements OnModuleInit {
     );
   }
 
+  private generateCertificateNumber(result: CertificationResult): string {
+    const year = new Date().getFullYear();
+    const resultCode = result === CertificationResult.PASS ? 'P' : 'F';
+    const randomPart = crypto.randomBytes(4).toString('hex').toUpperCase();
+    return `DHIS2-${year.toString()}-${resultCode}-${randomPart}`;
+  }
+
+  private generateVerificationCode(): string {
+    const bytes = crypto.randomBytes(12);
+    return Array.from(bytes, (b) => VERIFICATION_CODE_BASE32[b % 32]).join('');
+  }
+
+  private async allocateVerificationCode(
+    certRepo: Repository<Certificate>,
+  ): Promise<string> {
+    let code = this.generateVerificationCode();
+    let existing = await certRepo.findOne({
+      where: { verificationCode: code },
+    });
+    if (existing) {
+      code = this.generateVerificationCode();
+      existing = await certRepo.findOne({
+        where: { verificationCode: code },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'Could not allocate a unique verification code',
+        );
+      }
+    }
+    return code;
+  }
+
   async issueCertificate(
     submissionId: string,
     issuerId: string,
@@ -136,7 +162,6 @@ export class CertificatesService implements OnModuleInit {
       throw new NotFoundException('Implementation not found');
     }
 
-    const categoryScores = await this.calculateCategoryScores(submission);
     const validityPeriod = this.getValidityPeriod(
       submission.certificationResult,
     );
@@ -158,46 +183,23 @@ export class CertificatesService implements OnModuleInit {
             );
           }
 
-          const statusListIndex =
-            await this.getNextStatusListIndexWithManager(manager);
-
-          const { credential, certificateHash, signature, keyVersion } =
-            await this.credentialIssuance.issueCredential(
-              {
-                submissionId: submission.id,
-                implementationId: implementation.id,
-                implementationName: implementation.name,
-                certificationResult: submission.certificationResult!,
-                controlGroup: submission.targetControlGroup as 'DSCP1',
-                finalScore: submission.totalScore!,
-                categoryScores,
-                validFrom: validityPeriod.validFrom,
-                validUntil: validityPeriod.validUntil,
-              },
-              statusListIndex,
-            );
+          const verificationCode =
+            await this.allocateVerificationCode(certRepo);
 
           const certificate: Certificate = certRepo.create({
             submissionId: submission.id,
             implementationId: implementation.id,
-            certificateNumber:
-              this.credentialIssuance.generateCertificateNumber(
-                submission.certificationResult!,
-              ),
+            certificateNumber: this.generateCertificateNumber(
+              submission.certificationResult!,
+            ),
             certificationResult: submission.certificationResult!,
             controlGroup: submission.targetControlGroup,
             finalScore: submission.totalScore!,
             validFrom: validityPeriod.validFrom,
             validUntil: validityPeriod.validUntil,
-            certificateHash,
-            signature,
-            signingKeyVersion: keyVersion,
-            verificationCode:
-              this.credentialIssuance.generateVerificationCode(),
-            vcJson: credential,
-            statusListIndex,
+            verificationCode,
             issuedById: issuerId,
-          } as Partial<Certificate>);
+          });
 
           const savedCert: Certificate = await certRepo.save(certificate);
 
@@ -281,80 +283,17 @@ export class CertificatesService implements OnModuleInit {
 
   async findOneWithVerification(id: string): Promise<{
     certificate: Certificate;
-    integrityStatus: {
-      verified: boolean;
-      integrityValid?: boolean;
-      signatureValid?: boolean;
-      error?: string;
-    };
+    integrityStatus: { valid: boolean };
   }> {
     const certificate = await this.findOne(id);
+    const now = new Date();
+    const valid =
+      !certificate.isRevoked && new Date(certificate.validUntil) >= now;
 
-    if (!certificate.vcJson || !certificate.certificateHash) {
-      return {
-        certificate,
-        integrityStatus: {
-          verified: false,
-          error: 'Certificate missing required data for verification',
-        },
-      };
-    }
-
-    try {
-      const verificationResult =
-        await this.credentialIssuance.verifyCredentialFull(
-          certificate.vcJson,
-          certificate.certificateHash,
-        );
-
-      const integrityStatus = {
-        verified: true,
-        integrityValid: verificationResult.integrityValid,
-        signatureValid: verificationResult.signatureValid,
-        error: verificationResult.error,
-      };
-
-      if (!verificationResult.valid) {
-        this.logger.warn(
-          `Certificate ${certificate.certificateNumber} failed integrity verification: ` +
-            `integrity=${verificationResult.integrityValid.toString()}, ` +
-            `signature=${verificationResult.signatureValid.toString()}`,
-        );
-
-        await this.auditService.log(
-          {
-            eventType: AuditEventType.INTEGRITY_CHECK_FAILED,
-            entityType: 'Certificate',
-            entityId: certificate.id,
-            entityName: certificate.certificateNumber,
-            action: AuditAction.VERIFY,
-            newValues: {
-              certificateNumber: certificate.certificateNumber,
-              integrityValid: verificationResult.integrityValid,
-              signatureValid: verificationResult.signatureValid,
-              error: verificationResult.error,
-            },
-          },
-          {},
-        );
-      }
-
-      return { certificate, integrityStatus };
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown verification error';
-      this.logger.error(
-        `Verification error for certificate ${id}: ${errorMessage}`,
-      );
-
-      return {
-        certificate,
-        integrityStatus: {
-          verified: false,
-          error: errorMessage,
-        },
-      };
-    }
+    return {
+      certificate,
+      integrityStatus: { valid },
+    };
   }
 
   async findByVerificationCode(code: string): Promise<Certificate> {
@@ -431,9 +370,6 @@ export class CertificatesService implements OnModuleInit {
 
     const saved = await this.certificateRepo.save(certificate);
 
-    const issuedYear = new Date(saved.issuedAt).getFullYear();
-    await this.statusListCache.invalidate(issuedYear);
-
     await this.auditService.log(
       {
         eventType: AuditEventType.CERTIFICATE_REVOKED,
@@ -454,9 +390,7 @@ export class CertificatesService implements OnModuleInit {
       { actorId: revokerId },
     );
 
-    this.logger.log(
-      `Certificate ${certificate.certificateNumber} revoked, status list cache invalidated for year ${issuedYear.toString()}`,
-    );
+    this.logger.log(`Certificate ${certificate.certificateNumber} revoked`);
 
     return saved;
   }
@@ -468,29 +402,16 @@ export class CertificatesService implements OnModuleInit {
       found: boolean;
       notRevoked: boolean;
       notExpired: boolean;
-      integrityValid: boolean;
-      signatureValid: boolean;
     };
-    error?: string;
   }> {
     try {
       const certificate = await this.findByVerificationCode(code);
 
       const now = new Date();
-      const notExpired = new Date(certificate.validUntil) > now;
+      const notExpired = new Date(certificate.validUntil) >= now;
       const notRevoked = !certificate.isRevoked;
 
-      const verificationResult =
-        await this.credentialIssuance.verifyCredentialFull(
-          certificate.vcJson,
-          certificate.certificateHash,
-        );
-
-      const allValid =
-        notExpired &&
-        notRevoked &&
-        verificationResult.integrityValid &&
-        verificationResult.signatureValid;
+      const valid = notExpired && notRevoked;
 
       try {
         await this.auditService.log(
@@ -501,11 +422,9 @@ export class CertificatesService implements OnModuleInit {
             entityName: certificate.certificateNumber,
             action: AuditAction.VERIFY,
             newValues: {
-              valid: allValid,
+              valid,
               notRevoked,
               notExpired,
-              integrityValid: verificationResult.integrityValid,
-              signatureValid: verificationResult.signatureValid,
             },
           },
           {},
@@ -518,16 +437,13 @@ export class CertificatesService implements OnModuleInit {
       }
 
       return {
-        valid: allValid,
+        valid,
         certificate,
         checks: {
           found: true,
           notRevoked,
           notExpired,
-          integrityValid: verificationResult.integrityValid,
-          signatureValid: verificationResult.signatureValid,
         },
-        error: verificationResult.error,
       };
     } catch {
       return {
@@ -536,65 +452,9 @@ export class CertificatesService implements OnModuleInit {
           found: false,
           notRevoked: false,
           notExpired: false,
-          integrityValid: false,
-          signatureValid: false,
         },
       };
     }
-  }
-
-  private async calculateCategoryScores(
-    submission: Submission,
-  ): Promise<{ name: string; score: number }[]> {
-    const responses = await this.responseRepo.find({
-      where: { submissionId: submission.id },
-    });
-
-    const categories = await this.categoryRepo.find({
-      where: { templateId: submission.templateId },
-      relations: ['criteria'],
-      order: { sortOrder: 'ASC' },
-    });
-
-    const responseMap = new Map(responses.map((r) => [r.criterionId, r]));
-
-    const categoryScores: { name: string; score: number }[] = [];
-
-    for (const category of categories) {
-      const criteria = category.criteria;
-
-      let totalWeight = 0;
-      let weightedScore = 0;
-
-      for (const criterion of criteria) {
-        const response = responseMap.get(criterion.id);
-        if (response?.score !== null && response?.score !== undefined) {
-          const normalizedScore = (response.score / criterion.maxScore) * 100;
-          weightedScore += normalizedScore * criterion.weight;
-          totalWeight += criterion.weight;
-        }
-      }
-
-      const categoryScore = totalWeight > 0 ? weightedScore / totalWeight : 0;
-      categoryScores.push({
-        name: category.name,
-        score: Math.round(categoryScore * 100) / 100,
-      });
-    }
-
-    return categoryScores;
-  }
-
-  private async getNextStatusListIndexWithManager(
-    manager: import('typeorm').EntityManager,
-  ): Promise<number> {
-    const result = await manager
-      .getRepository(Certificate)
-      .createQueryBuilder('c')
-      .select('MAX(c.statusListIndex)', 'max')
-      .getRawOne<{ max: number | null }>();
-
-    return (result?.max ?? 0) + 1;
   }
 
   private getValidityPeriod(result: CertificationResult): {

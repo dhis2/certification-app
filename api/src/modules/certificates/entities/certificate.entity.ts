@@ -12,7 +12,6 @@ import { Implementation } from '../../implementations/entities/implementation.en
 import { Submission } from '../../submissions/entities/submission.entity';
 import { User } from '../../users/entities/user.entity';
 import { CertificationResult, ControlGroup } from '../../../common/enums';
-import type { DHIS2ServerCredential } from '../interfaces';
 
 @Entity('certificates')
 export class Certificate {
@@ -73,26 +72,13 @@ export class Certificate {
   @Column({ name: 'valid_until', type: 'date' })
   validUntil!: Date;
 
-  @Column({ name: 'certificate_hash', type: 'varchar', length: 64 })
-  certificateHash!: string;
-
-  @Column({ type: 'text' })
-  signature!: string;
-
-  @Column({ name: 'signing_key_version', type: 'int' })
-  signingKeyVersion!: number;
-
   @Column({
     name: 'verification_code',
     type: 'varchar',
     length: 50,
     unique: true,
-    nullable: true,
   })
-  verificationCode!: string | null;
-
-  @Column({ name: 'vc_json', type: 'jsonb' })
-  vcJson!: DHIS2ServerCredential;
+  verificationCode!: string;
 
   @Column({ name: 'is_revoked', type: 'boolean', default: false })
   isRevoked!: boolean;
@@ -109,14 +95,6 @@ export class Certificate {
 
   @Column({ name: 'revocation_reason', type: 'text', nullable: true })
   revocationReason!: string | null;
-
-  @Column({
-    name: 'status_list_index',
-    type: 'int',
-    unique: true,
-    nullable: true,
-  })
-  statusListIndex!: number | null;
 
   @Column({ name: 'issued_at', type: 'timestamptz', default: () => 'NOW()' })
   issuedAt!: Date;

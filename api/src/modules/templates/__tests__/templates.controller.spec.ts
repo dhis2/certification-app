@@ -57,6 +57,7 @@ const createMockCriterion = (overrides = {}) => ({
   controlType: ControlType.TECHNICAL,
   cisMapping: null,
   verificationMethod: null,
+  justification: null,
   createdAt: new Date(),
   ...overrides,
 });
@@ -265,7 +266,16 @@ describe('TemplatesController', () => {
       const result = await controller.findOne(mockTemplate.id);
 
       expect(result.id).toBe(mockTemplate.id);
+      expect(result.templateName).toBe(mockTemplate.name);
+      expect(result.templateDescription).toBe(mockTemplate.description);
       expect(result.categories).toBeDefined();
+      expect(result.complianceStatusScoring).toEqual({
+        compliant: 100,
+        partially_compliant: 50,
+        non_compliant: 0,
+        not_applicable: null,
+        not_tested: 0,
+      });
       expect(mockService.findOne).toHaveBeenCalledWith(mockTemplate.id);
     });
   });

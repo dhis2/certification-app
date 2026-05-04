@@ -5,6 +5,7 @@ import '@fontsource/roboto/400.css'
 import '@fontsource/roboto/400-italic.css'
 import '@fontsource/roboto/500.css'
 import '@fontsource/roboto/700.css'
+import '../styles/dscp-tokens.css'
 import { createBrowserRouter, createRoutesFromElements, Navigate, Route, RouterProvider } from 'react-router-dom'
 import { AdminRoute, Alerts, AuthProvider, ErrorBoundary, ErrorView, Layout } from '../components/index.ts'
 import {
@@ -21,6 +22,7 @@ import {
     VerifyCertificate,
     TemplatesList,
     TemplateDetail,
+    TemplatePreview,
     TemplateImport,
     TemplateDiff,
     UsersList,
@@ -30,7 +32,6 @@ import {
     MonitoringDashboard,
     AuditLogs,
     AuditLogDetail,
-    SigningKeys,
 } from '../views/index.ts'
 
 const router = createBrowserRouter(
@@ -59,6 +60,7 @@ const router = createBrowserRouter(
                         <Route path="/templates" element={<TemplatesList />} />
                         <Route path="/templates/import" element={<TemplateImport />} />
                         <Route path="/templates/diff/:name" element={<TemplateDiff />} />
+                        <Route path="/templates/:id/preview" element={<TemplatePreview />} />
                         <Route path="/templates/:id" element={<TemplateDetail />} />
                         <Route path="/admin/users" element={<UsersList />} />
                         <Route path="/admin/users/:id" element={<UserDetail />} />
@@ -67,7 +69,6 @@ const router = createBrowserRouter(
                         <Route path="/admin/monitoring" element={<MonitoringDashboard />} />
                         <Route path="/admin/audit" element={<AuditLogs />} />
                         <Route path="/admin/audit/:id" element={<AuditLogDetail />} />
-                        <Route path="/admin/keys" element={<SigningKeys />} />
                     </Route>
                 </Route>
             </Route>

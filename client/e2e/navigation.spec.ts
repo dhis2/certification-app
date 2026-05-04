@@ -80,7 +80,6 @@ test.describe('Navigation and Layout', () => {
             await expect(dashboard.certificatesNav).toBeVisible()
             await expect(dashboard.monitoringNav).toBeVisible()
             await expect(dashboard.auditNav).toBeVisible()
-            await expect(dashboard.keysNav).toBeVisible()
         })
 
         test('should navigate to users management', async ({ adminPage }) => {
@@ -105,14 +104,6 @@ test.describe('Navigation and Layout', () => {
 
             await dashboard.navigateTo('audit')
             expect(adminPage.url()).toContain('/admin/audit')
-        })
-
-        test('should navigate to signing keys', async ({ adminPage }) => {
-            const dashboard = new DashboardPage(adminPage)
-            await dashboard.goto()
-
-            await dashboard.navigateTo('keys')
-            expect(adminPage.url()).toContain('/admin/keys')
         })
     })
 

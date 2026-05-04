@@ -6,7 +6,8 @@
         "start": "vite --port 3000",
         "build": "tsc -b && vite build",
         "preview": "vite preview",
-        "test": "jest test",
+        "start:e2e": "npm run build && vite preview --host 127.0.0.1 --port 3000 --strictPort",
+        "test": "jest --passWithNoTests",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:headed": "playwright test --headed",
@@ -18,8 +19,11 @@
         "format:check": "prettier --check ."
     },
     "dependencies": {
+        "@dhis2/app-runtime": "^3.17.0",
         "@dhis2/app-service-alerts": "^3.16.0",
+        "@dhis2/data-engine": "3.17.0",
         "@dhis2/ui": "^10.12.11",
+        "@dhis2/ui-constants": "^10.12.11",
         "@fontsource/roboto": "^5.2.10",
         "axios": "^1.13.6",
         "axios-hooks": "^5.1.1",

@@ -5,7 +5,7 @@ export interface VaultConfig {
   address: string;
   roleId: string;
   secretId: string;
-  transitSigningKey: string;
+  transitKeyName: string;
   transitEncryptionKey: string;
   transitHmacKey: string;
   tokenRenewIntervalMs: number;
@@ -20,7 +20,7 @@ export default registerAs(
     address: process.env.VAULT_ADDR ?? 'http://127.0.0.1:8200',
     roleId: process.env.VAULT_ROLE_ID ?? '',
     secretId: process.env.VAULT_SECRET_ID ?? '',
-    transitSigningKey: process.env.VAULT_TRANSIT_SIGNING_KEY ?? 'vc-signing',
+    transitKeyName: process.env.VAULT_TRANSIT_SIGNING_KEY ?? 'app-transit',
     transitEncryptionKey:
       process.env.VAULT_TRANSIT_ENCRYPTION_KEY ?? 'otp-encryption',
     transitHmacKey: process.env.VAULT_TRANSIT_HMAC_KEY ?? 'audit-hmac',

@@ -24,12 +24,6 @@ export const configuration = () => ({
     origin: process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:3000'],
   },
 
-  signing: {
-    keyPath: process.env.SIGNING_KEY_PATH ?? './keys/signing.key',
-    publicKeyPath: process.env.SIGNING_PUBLIC_KEY_PATH ?? './keys/signing.pub',
-    keyPassphrase: process.env.SIGNING_KEY_PASSPHRASE,
-  },
-
   vault: {
     enabled: process.env.USE_VAULT === 'true',
     address: process.env.VAULT_ADDR,
@@ -39,9 +33,6 @@ export const configuration = () => ({
 
   app: {
     baseUrl: process.env.APP_BASE_URL ?? 'http://localhost:3001',
-    issuerDid: process.env.ISSUER_DID ?? 'did:web:localhost',
-    issuerName:
-      process.env.ISSUER_NAME ?? 'DHIS2 Server Certification Authority',
   },
 });
 

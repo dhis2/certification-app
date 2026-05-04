@@ -12,7 +12,7 @@ describe('VaultService', () => {
     address: 'http://127.0.0.1:8200',
     roleId: 'test-role-id',
     secretId: 'test-secret-id',
-    transitSigningKey: 'vc-signing',
+    transitKeyName: 'app-transit',
     transitEncryptionKey: 'otp-encryption',
     transitHmacKey: 'audit-hmac',
     tokenRenewIntervalMs: 300_000,
@@ -233,7 +233,7 @@ describe('VaultService', () => {
 
       expect(result).toEqual(Buffer.from('fake-sig'));
       expect(fetchSpy.mock.calls[0][0]).toContain(
-        '/v1/transit/sign/vc-signing',
+        '/v1/transit/sign/app-transit',
       );
     });
 

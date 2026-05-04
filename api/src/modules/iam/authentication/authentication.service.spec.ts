@@ -21,6 +21,7 @@ import {
   SessionExpiredError,
 } from 'src/shared/errors';
 import { ActiveUserData } from '../interfaces';
+import { AuditService } from 'src/modules/audit/services/audit.service';
 
 describe('AuthenticationService', () => {
   let service: AuthenticationService;
@@ -120,6 +121,10 @@ describe('AuthenticationService', () => {
     sendWelcome: jest.fn(),
   };
 
+  const mockAuditService = {
+    log: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockSessionTimeoutStorage = {
     createSession: jest.fn().mockResolvedValue(undefined),
     validateSession: jest.fn().mockResolvedValue(undefined),
@@ -153,6 +158,7 @@ describe('AuthenticationService', () => {
           useValue: mockPasswordLockoutStorage,
         },
         { provide: MailService, useValue: mockMailService },
+        { provide: AuditService, useValue: mockAuditService },
         {
           provide: SessionTimeoutStorage,
           useValue: mockSessionTimeoutStorage,
@@ -606,7 +612,7 @@ describe('AuthenticationService', () => {
         mockUser.id,
         expect.objectContaining({
           failedLoginAttempts: 0,
-          lastLoginAt: expect.any(Date) as unknown as Date,
+          lastLoginAt: expect.any(Date),
         }),
       );
     });
@@ -635,7 +641,7 @@ describe('AuthenticationService', () => {
         mockUser.id,
         expect.objectContaining({
           failedLoginAttempts: 0,
-          lastLoginAt: expect.any(Date) as unknown as Date,
+          lastLoginAt: expect.any(Date),
         }),
       );
     });

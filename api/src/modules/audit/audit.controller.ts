@@ -97,7 +97,7 @@ export class AuditController {
   ): Promise<HashChainValidationResponseDto> {
     return this.auditService.validateHashChain({
       startId: query.startId,
-      endId: query.endId,
+      untilAuditLogId: query.untilAuditLogId,
       limit: query.limit,
     });
   }
@@ -114,7 +114,7 @@ export class AuditController {
   ): Promise<IntegrityValidationResponseDto> {
     return this.auditService.validateIntegrity({
       startId: query.startId,
-      endId: query.endId,
+      untilAuditLogId: query.untilAuditLogId,
       limit: query.limit,
     });
   }
