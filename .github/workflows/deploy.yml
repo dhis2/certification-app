@@ -200,6 +200,9 @@ jobs:
           SECRET_JWT_SECRET: ${{ secrets.JWT_SECRET }}
           SECRET_AUDIT_LOG_HMAC_KEY: ${{ secrets.AUDIT_LOG_HMAC_KEY }}
           SECRET_SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          SECRET_MAIL_HOST: ${{ secrets.MAIL_HOST }}
+          SECRET_MAIL_USER: ${{ secrets.MAIL_USER }}
+          SECRET_MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           RUN_SEEDS_FLAG: ${{ vars.RUN_SEEDS || 'false' }}
         run: |
           set -euo pipefail
@@ -216,6 +219,9 @@ jobs:
           write_444 "${secrets_dir}/redis_password" "${SECRET_REDIS_PASSWORD}"
           write_444 "${secrets_dir}/jwt_secret" "${SECRET_JWT_SECRET}"
           write_444 "${secrets_dir}/audit_log_hmac_key" "${SECRET_AUDIT_LOG_HMAC_KEY}"
+          write_444 "${secrets_dir}/mail_host" "${SECRET_MAIL_HOST}"
+          write_444 "${secrets_dir}/mail_user" "${SECRET_MAIL_USER}"
+          write_444 "${secrets_dir}/mail_password" "${SECRET_MAIL_PASSWORD}"
 
           if [ "${RUN_SEEDS_FLAG}" = "true" ]; then
             write_444 "${secrets_dir}/seed_admin_password" "${SECRET_SEED_ADMIN_PASSWORD}"
@@ -241,6 +247,12 @@ jobs:
           VALUE_DB_NAME: ${{ secrets.DB_NAME }}
           VALUE_SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
           USE_VAULT_FLAG: ${{ vars.USE_VAULT || 'false' }}
+          APP_BASE_URL_VAL: ${{ vars.APP_BASE_URL }}
+          MAIL_ENABLED_VAL: ${{ vars.MAIL_ENABLED || 'true' }}
+          MAIL_PORT_VAL: ${{ vars.MAIL_PORT || '587' }}
+          MAIL_SECURE_VAL: ${{ vars.MAIL_SECURE || 'false' }}
+          MAIL_FROM_NAME_VAL: ${{ vars.MAIL_FROM_NAME || 'DHIS2 Server Certification' }}
+          MAIL_FROM_ADDRESS_VAL: ${{ vars.MAIL_FROM_ADDRESS || 'no-reply@dhis2.org' }}
           DEPLOY_REASON: ${{ inputs.reason }}
           RESOLVED_API_TAG: ${{ needs.validate.outputs.api_image_tag }}
           RESOLVED_CLIENT_TAG: ${{ needs.validate.outputs.client_image_tag }}
@@ -282,6 +294,15 @@ jobs:
             printf 'SEED_ADMIN_EMAIL=%s\n' "${VALUE_SEED_ADMIN_EMAIL}"
             printf '%s\n' SEED_ADMIN_PASSWORD_FILE=/run/secrets/seed_admin_password
             printf 'USE_VAULT=%s\n' "${USE_VAULT_FLAG}"
+            printf 'APP_BASE_URL=%s\n' "${APP_BASE_URL_VAL}"
+            printf 'MAIL_ENABLED=%s\n' "${MAIL_ENABLED_VAL}"
+            printf 'MAIL_PORT=%s\n' "${MAIL_PORT_VAL}"
+            printf 'MAIL_SECURE=%s\n' "${MAIL_SECURE_VAL}"
+            printf '%s\n' MAIL_HOST_FILE=/run/secrets/mail_host
+            printf '%s\n' MAIL_USER_FILE=/run/secrets/mail_user
+            printf '%s\n' MAIL_PASSWORD_FILE=/run/secrets/mail_password
+            printf 'MAIL_FROM_NAME=%s\n' "${MAIL_FROM_NAME_VAL}"
+            printf 'MAIL_FROM_ADDRESS=%s\n' "${MAIL_FROM_ADDRESS_VAL}"
             printf 'DHIS2_CERT_API_IMAGE=%s\n' "${api_img}"
             printf 'DHIS2_CERT_CLIENT_IMAGE=%s\n' "${client_img}"
             printf 'TAG=%s\n' "${RESOLVED_API_TAG}"

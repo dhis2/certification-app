@@ -11,6 +11,12 @@ secrets:
     file: ${SECRETS_DIR:-./secrets}/audit_log_hmac_key
   seed_admin_password:
     file: ${SECRETS_DIR:-./secrets}/seed_admin_password
+  mail_host:
+    file: ${SECRETS_DIR:-./secrets}/mail_host
+  mail_user:
+    file: ${SECRETS_DIR:-./secrets}/mail_user
+  mail_password:
+    file: ${SECRETS_DIR:-./secrets}/mail_password
 
 services:
   dhis2-cert-db:
@@ -68,11 +74,17 @@ services:
       - redis_password
       - jwt_secret
       - audit_log_hmac_key
+      - mail_host
+      - mail_user
+      - mail_password
     environment:
       DB_PASSWORD_FILE: /run/secrets/db_password
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
       AUDIT_LOG_HMAC_KEY_FILE: /run/secrets/audit_log_hmac_key
+      MAIL_HOST_FILE: /run/secrets/mail_host
+      MAIL_USER_FILE: /run/secrets/mail_user
+      MAIL_PASSWORD_FILE: /run/secrets/mail_password
     cap_drop:
       - ALL
     read_only: true

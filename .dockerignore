@@ -1,3 +1,10 @@
-**/.git
-**/node_modules
+# Defensive fallback for ad-hoc `docker build .` from repo root.
+# Real ignores live in api/.dockerignore and client/.dockerignore — pipelines
+# build with context=./api or ./client, so this file is not normally consulted.
+
+.git
 secrets/
+**/secrets/
+**/.env
+**/.env.*
+!**/.env.example

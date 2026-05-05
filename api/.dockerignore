@@ -1,12 +1,53 @@
+# Dependencies
 node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
 dist
+build
+*.tsbuildinfo
+
+# Tests & coverage
 coverage
-npm-debug.log
+.nyc_output
+test
+
+# Env (keep example)
 .env
 .env.*
 !.env.example
+
+# VCS & OS
 .git
+.gitignore
+.gitattributes
 .DS_Store
-README.md
+Thumbs.db
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Tooling caches
+.eslintcache
+.cache
+logs
+*.log
+
+# Hooks & docs
 .husky
-test
+*.md
+
+# Lint/format configs (not read by `nest build`)
+eslint.config.mjs
+.prettierrc
+.prettierignore
+
+# Docker self-reference
+Dockerfile
+.dockerignore
