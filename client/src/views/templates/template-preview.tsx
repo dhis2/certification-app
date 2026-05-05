@@ -1,5 +1,5 @@
 import { Button, ButtonStrip, CircularLoader, LogoIcon, NoticeBox } from '@dhis2/ui'
-import { useCallback, useRef, type FC } from 'react'
+import { useCallback, useEffect, useRef, type FC } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth, useTemplate } from '../../hooks/index.ts'
 // eslint-disable-next-line import/no-unresolved -- Vite ?inline emits CSS string at build time
@@ -61,6 +61,33 @@ export const TemplatePreview: FC = () => {
     const { isAdmin } = useAuth()
     const { template, loading, error } = useTemplate(id)
     const exportRootRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        let snapshot: Array<{ el: HTMLDetailsElement; open: boolean }> = []
+        const onBefore = () => {
+            const root = exportRootRef.current
+            if (!root) {
+                return
+            }
+            const els = Array.from(root.querySelectorAll('details'))
+            snapshot = els.map((el) => ({ el, open: el.open }))
+            els.forEach((el) => {
+                el.open = true
+            })
+        }
+        const onAfter = () => {
+            snapshot.forEach(({ el, open }) => {
+                el.open = open
+            })
+            snapshot = []
+        }
+        window.addEventListener('beforeprint', onBefore)
+        window.addEventListener('afterprint', onAfter)
+        return () => {
+            window.removeEventListener('beforeprint', onBefore)
+            window.removeEventListener('afterprint', onAfter)
+        }
+    }, [])
 
     const handlePrint = useCallback(() => {
         window.print()

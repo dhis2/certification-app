@@ -120,3 +120,21 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
+
+@media print {
+    .container {
+        display: block;
+        min-height: 0;
+    }
+
+    .nav {
+        display: none !important;
+    }
+
+    .mainArea {
+        padding: 0;
+        max-height: none;
+        overflow: visible;
+        background: #fff;
+    }
+}

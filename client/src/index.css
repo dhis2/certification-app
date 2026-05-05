@@ -8,6 +8,18 @@ body {
     overflow: auto;
 }
 
+@media print {
+    body {
+        background: #fff;
+    }
+
+    #root {
+        height: auto;
+        width: auto;
+        overflow: visible;
+    }
+}
+
 a {
     color: var(--colors-blue600);
 }
