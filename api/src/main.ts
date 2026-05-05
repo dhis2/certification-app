@@ -3,10 +3,13 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { hydrateSecretsFromFiles } from './config/hydrate-secrets-from-files';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './filter/http-exception.filter';
 
 async function bootstrap() {
+  hydrateSecretsFromFiles();
+
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: true,

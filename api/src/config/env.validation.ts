@@ -12,6 +12,7 @@ const envSchema = z.object({
   DB_USER: z.string().default('postgres'),
   DB_PASSWORD: z.string().default('postgres'),
   DB_NAME: z.string().default('dhis2_certification'),
+  DATABASE_SSL: z.enum(['true', 'false']).optional(),
   DB_SSL: z.coerce.boolean().default(false),
 
   // JWT configuration
@@ -123,11 +124,16 @@ function validateProductionSecrets(
     });
   }
 
-  if (!config.DB_SSL) {
+  const postgresInDockerNetwork =
+    config.DB_HOST === 'dhis2-cert-db' ||
+    config.DB_HOST === 'localhost' ||
+    config.DB_HOST === '127.0.0.1';
+
+  if (!config.DB_SSL && !postgresInDockerNetwork) {
     errors.push({
       field: 'DB_SSL',
       message:
-        'DB_SSL should be enabled in production for encrypted connections',
+        'DB_SSL/DATABASE_SSL should be enabled in production unless the DB is trusted (e.g. internal compose service)',
       reference: 'OWASP Database Security Cheat Sheet',
     });
   }
@@ -216,7 +222,13 @@ function validateStagingSecrets(
 export function envValidationSchema(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result = envSchema.safeParse(config);
+  const merged: Record<string, unknown> = { ...config };
+  if (merged.DB_SSL === undefined && merged.DATABASE_SSL !== undefined) {
+    merged.DB_SSL =
+      merged.DATABASE_SSL === 'true' || merged.DATABASE_SSL === true;
+  }
+
+  const result = envSchema.safeParse(merged);
 
   if (!result.success) {
     const errors = result.error.format();

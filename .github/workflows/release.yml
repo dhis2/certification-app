@@ -210,14 +210,15 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
-      api-tag: ${{ needs.resolve-tags.outputs.api-tag }}
-      client-tag: ${{ needs.resolve-tags.outputs.client-tag }}
+      api-version: ${{ needs.resolve-tags.outputs.api-tag }}
+      client-version: ${{ needs.resolve-tags.outputs.client-tag }}
     secrets: inherit
 
   e2e-staging:
     name: E2E Tests (Staging)
     runs-on: ubuntu-24.04
     needs: [deploy-staging]
+    environment: staging
     permissions:
       contents: read
     steps:
@@ -236,7 +237,7 @@ jobs:
       - name: Run E2E tests against staging
         working-directory: client
         env:
-          PLAYWRIGHT_BASE_URL: https://staging.${{ vars.DOMAIN }}
+          PLAYWRIGHT_BASE_URL: https://${{ vars.DOMAIN }}
           CI: "true"
         run: npx playwright test --project=chromium
 
@@ -254,6 +255,6 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
-      api-tag: ${{ needs.resolve-tags.outputs.api-tag }}
-      client-tag: ${{ needs.resolve-tags.outputs.client-tag }}
+      api-version: ${{ needs.resolve-tags.outputs.api-tag }}
+      client-version: ${{ needs.resolve-tags.outputs.client-tag }}
     secrets: inherit

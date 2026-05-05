@@ -298,6 +298,6 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
-      api-tag: sha-${{ github.sha }}
-      client-tag: sha-${{ github.sha }}
+      api-version: sha-${{ github.sha }}
+      client-version: sha-${{ github.sha }}
     secrets: inherit

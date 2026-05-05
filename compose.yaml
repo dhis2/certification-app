@@ -19,7 +19,7 @@ services:
     environment:
       TZ: UTC
       POSTGRES_USER: ${DB_USER?Variable not set}
-      POSTGRES_PASSWORD: ${DB_PASSWORD?Variable not set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-}
       POSTGRES_DB: ${DB_NAME?Variable not set}
       PGDATA: /var/lib/postgresql/data/pgdata
     env_file:
@@ -27,7 +27,7 @@ services:
     networks: *common-networks
     restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 30s
       retries: 3
       start_period: 30s
@@ -47,13 +47,23 @@ services:
     container_name: dhis2-cert-redis
     volumes:
       - redis-data:/data
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD?Variable not set}
+    env_file:
+      - .env
     networks: *common-networks
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD?Variable not set}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password 2>/dev/null ||
+        printf '%s' "$$REDIS_PASSWORD");
+        exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
     restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG" ]
+      test:
+        [
+          "CMD-SHELL",
+          'REDIS_CLI_PASS=$$(cat /run/secrets/redis_password 2>/dev/null || printf "%s" "$$REDIS_PASSWORD"); redis-cli -a "$$REDIS_CLI_PASS" ping | grep PONG',
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -78,7 +88,7 @@ services:
       NODE_ENV: production
       DB_HOST: dhis2-cert-db
       DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME}
       RUN_SEEDS: ${RUN_SEEDS:-false}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
@@ -116,15 +126,16 @@ services:
       PORT: ${PORT?Variable not set}
       DB_HOST: dhis2-cert-db
       REDIS_HOST: dhis2-cert-redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD?Variable not set}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       DOMAIN: ${DOMAIN?Variable not set}
-      JWT_SECRET: ${JWT_SECRET?Variable not set}
+      JWT_SECRET: ${JWT_SECRET:-}
       JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL?Variable not set}
       JWT_REFRESH_TOKEN_TTL: ${JWT_REFRESH_TOKEN_TTL?Variable not set}
       JWT_TOKEN_AUDIENCE: ${JWT_TOKEN_AUDIENCE?Variable not set}
       JWT_TOKEN_ISSUER: ${JWT_TOKEN_ISSUER?Variable not set}
       JWT_ALGORITHM: "HS256"
       CORS_ORIGIN: ${CORS_ORIGIN?Variable not set}
+      AUDIT_LOG_HMAC_KEY: ${AUDIT_LOG_HMAC_KEY:-}
     env_file:
       - .env
     networks:
@@ -132,7 +143,7 @@ services:
       - dhis2-cert-api
     restart: always
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:${PORT}/health/live" ]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${PORT}/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -168,7 +179,7 @@ services:
       - traefik-public
     restart: always
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000/" ]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -196,34 +207,6 @@ services:
           memory: 32M
     stop_grace_period: 15s
 
-  dhis2-cert-vault:
-    image: openbao/openbao:2.1.1
-    container_name: dhis2-cert-vault
-    profiles: ["vault"]
-    volumes:
-      - vault-data:/vault/data
-      - ./docker/vault-config.hcl:/vault/config/config.hcl:ro
-    environment:
-      BAO_ADDR: http://127.0.0.1:8200
-    command: server -config=/vault/config/config.hcl
-    networks: *common-networks
-    restart: always
-    healthcheck:
-      test: ["CMD", "bao", "status", "-format=json"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 64M
-
 networks:
   traefik-public:
     external: true
@@ -233,4 +216,3 @@ networks:
 volumes:
   postgres-data:
   redis-data:
-  vault-data:

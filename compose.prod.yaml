@@ -1,7 +1,75 @@
 name: dhis2-cert-app
 
+secrets:
+  db_password:
+    file: ${SECRETS_DIR:-./secrets}/db_password
+  redis_password:
+    file: ${SECRETS_DIR:-./secrets}/redis_password
+  jwt_secret:
+    file: ${SECRETS_DIR:-./secrets}/jwt_secret
+  audit_log_hmac_key:
+    file: ${SECRETS_DIR:-./secrets}/audit_log_hmac_key
+  seed_admin_password:
+    file: ${SECRETS_DIR:-./secrets}/seed_admin_password
+
 services:
+  dhis2-cert-db:
+    secrets:
+      - db_password
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run/postgresql
+
+  dhis2-cert-redis:
+    secrets:
+      - redis_password
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+  dhis2-cert-migrations:
+    secrets:
+      - db_password
+      - seed_admin_password
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      SEED_ADMIN_PASSWORD_FILE: /run/secrets/seed_admin_password
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
   dhis2-cert-api:
+    secrets:
+      - db_password
+      - redis_password
+      - jwt_secret
+      - audit_log_hmac_key
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      AUDIT_LOG_HMAC_KEY_FILE: /run/secrets/audit_log_hmac_key
     cap_drop:
       - ALL
     read_only: true
@@ -28,48 +96,3 @@ services:
       resources:
         limits:
           pids: 128
-
-  dhis2-cert-db:
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-      - FOWNER
-      - SETGID
-      - SETUID
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp
-      - /run/postgresql
-
-  dhis2-cert-redis:
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp
-
-  dhis2-cert-migrations:
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp
-
-  dhis2-cert-vault:
-    cap_drop:
-      - ALL
-    cap_add:
-      - IPC_LOCK
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp
