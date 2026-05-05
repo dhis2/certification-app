@@ -307,6 +307,7 @@
 @media print {
     @page {
         margin: 12mm;
+        size: A4 portrait;
     }
 
     .toolbar {
@@ -326,10 +327,12 @@
     .header {
         break-inside: avoid;
         break-after: avoid;
+        padding: 18px 18px 14px;
     }
 
     .categoryHead {
         break-inside: avoid;
+        padding: 12px 14px;
     }
 
     .header,
@@ -338,7 +341,70 @@
         border-radius: 0;
     }
 
+    .category {
+        margin-top: 14px;
+        overflow: visible !important;
+        break-inside: auto;
+    }
+
+    .criteria {
+        min-width: 0 !important;
+        table-layout: fixed;
+        font-size: 10px;
+    }
+
+    .criteria th,
+    .criteria td {
+        padding: 6px;
+        overflow-wrap: anywhere;
+    }
+
+    .colCode {
+        width: 56px;
+    }
+
+    .colType {
+        width: 64px;
+    }
+
+    .colGroup {
+        width: 56px;
+    }
+
+    .colCis {
+        width: 56px;
+    }
+
+    .inlineCode {
+        font-size: 10px;
+        padding: 1px 4px;
+    }
+
     .detailsBlock {
+        break-inside: avoid;
+        border: none;
+        padding: 0;
+        background: transparent;
+    }
+
+    .detailsBlock summary {
+        display: none;
+    }
+
+    .block {
+        font-size: 10px;
+    }
+
+    .blockLabel {
+        font-size: 10px;
+    }
+
+    .scoringTable th,
+    .scoringTable td {
+        padding: 8px 14px;
+    }
+
+    .criteria tbody tr {
         break-inside: avoid;
     }
 
