@@ -110,7 +110,6 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /var/cache/nginx
     deploy:
       resources:
         limits:
