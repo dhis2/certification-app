@@ -13,8 +13,8 @@ RUN yarn build
 FROM nginx:1.28.0-alpine3.21 AS runtime
 
 RUN addgroup -g 1001 -S app && adduser -S app -u 1001 && \
-    chown -R app:app /var/cache/nginx /var/log/nginx && \
-    sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf
+    sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf && \
+    sed -i 's|/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf
 
 COPY --from=base --chown=app:app /app/build /usr/share/nginx/html
 COPY --chown=app:app docker/security-headers.conf /etc/nginx/security-headers.conf
