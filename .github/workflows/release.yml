@@ -1,3 +1,4 @@
+---
 name: Release
 
 on:
@@ -37,32 +38,34 @@ jobs:
     permissions:
       contents: read
     outputs:
-      api-tag: ${{ steps.tags.outputs.api-tag }}
-      client-tag: ${{ steps.tags.outputs.client-tag }}
+      api-version-plain: ${{ steps.tags.outputs.api-version-plain }}
+      client-version-plain: ${{ steps.tags.outputs.client-version-plain }}
       api-major-minor: ${{ steps.tags.outputs.api-major-minor }}
       client-major-minor: ${{ steps.tags.outputs.client-major-minor }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Read manifest and resolve tags
+      - name: Read manifest and resolve versions
         id: tags
         run: |
+          set -euo pipefail
           API_VERSION=$(jq -r '.api' .release-please-manifest.json)
           CLIENT_VERSION=$(jq -r '.client' .release-please-manifest.json)
 
-          echo "api-tag=v${API_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "client-tag=v${CLIENT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "api-version-plain=${API_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "client-version-plain=${CLIENT_VERSION}" >> "$GITHUB_OUTPUT"
 
           API_MAJOR_MINOR=$(echo "$API_VERSION" | cut -d. -f1-2)
           CLIENT_MAJOR_MINOR=$(echo "$CLIENT_VERSION" | cut -d. -f1-2)
           echo "api-major-minor=v${API_MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
           echo "client-major-minor=v${CLIENT_MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
 
-  build-api:
-    name: Build API Release Image
+  build-api-staging:
+    name: Build API (staging)
     runs-on: ubuntu-24.04
     needs: [resolve-tags]
+    environment: staging
     permissions:
       contents: read
       packages: write
@@ -70,12 +73,33 @@ jobs:
       attestations: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+      deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=semver,pattern=v{{version}},suffix=-staging,value=${{ needs.resolve-tags.outputs.api-version-plain }}
+            type=semver,pattern=v{{major}}.{{minor}},suffix=-staging,value=${{ needs.resolve-tags.outputs.api-version-plain }}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - id: pick
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' '${{ steps.meta.outputs.tags }}' | head -n1)"
+          tag="${first##*:}"
+          echo "deploy-tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
@@ -92,16 +116,10 @@ jobs:
           file: ./api/Dockerfile
           target: runtime
           push: true
-          tags: |
-            ${{ env.API_IMAGE }}:${{ needs.resolve-tags.outputs.api-tag }}
-            ${{ env.API_IMAGE }}:${{ needs.resolve-tags.outputs.api-major-minor }}
-            ${{ env.API_IMAGE }}:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.resolve-tags.outputs.api-tag }}
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,scope=api,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api-staging
+          cache-to: type=gha,scope=api-staging,mode=max
 
       - name: Install cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
@@ -116,10 +134,11 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  build-client:
-    name: Build Client Release Image
+  build-api-production:
+    name: Build API (production)
     runs-on: ubuntu-24.04
     needs: [resolve-tags]
+    environment: production
     permissions:
       contents: read
       packages: write
@@ -127,12 +146,106 @@ jobs:
       attestations: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+      deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=semver,pattern=v{{version}},suffix=-production,value=${{ needs.resolve-tags.outputs.api-version-plain }}
+            type=semver,pattern=v{{major}}.{{minor}},suffix=-production,value=${{ needs.resolve-tags.outputs.api-version-plain }}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - id: pick
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' '${{ steps.meta.outputs.tags }}' | head -n1)"
+          tag="${first##*:}"
+          echo "deploy-tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          target: runtime
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api-production
+          cache-to: type=gha,scope=api-production,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign image
+        run: cosign sign --yes ${{ env.API_IMAGE }}@${{ steps.build.outputs.digest }}
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ${{ env.API_IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  build-client-staging:
+    name: Build Client (staging)
+    runs-on: ubuntu-24.04
+    needs: [resolve-tags]
+    environment: staging
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.CLIENT_IMAGE }}
+          tags: |
+            type=semver,pattern=v{{version}},suffix=-staging,value=${{ needs.resolve-tags.outputs.client-version-plain }}
+            type=semver,pattern=v{{major}}.{{minor}},suffix=-staging,value=${{ needs.resolve-tags.outputs.client-version-plain }}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - id: pick
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' '${{ steps.meta.outputs.tags }}' | head -n1)"
+          tag="${first##*:}"
+          echo "deploy-tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
@@ -149,16 +262,10 @@ jobs:
           file: ./client/Dockerfile
           target: runtime
           push: true
-          tags: |
-            ${{ env.CLIENT_IMAGE }}:${{ needs.resolve-tags.outputs.client-tag }}
-            ${{ env.CLIENT_IMAGE }}:${{ needs.resolve-tags.outputs.client-major-minor }}
-            ${{ env.CLIENT_IMAGE }}:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.resolve-tags.outputs.client-tag }}
-          cache-from: type=gha,scope=client
-          cache-to: type=gha,scope=client,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=client-staging
+          cache-to: type=gha,scope=client-staging,mode=max
 
       - name: Install cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
@@ -173,10 +280,83 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  scan-images:
-    name: Security Scan
+  build-client-production:
+    name: Build Client (production)
     runs-on: ubuntu-24.04
-    needs: [build-api, build-client]
+    needs: [resolve-tags]
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.CLIENT_IMAGE }}
+          tags: |
+            type=semver,pattern=v{{version}},suffix=-production,value=${{ needs.resolve-tags.outputs.client-version-plain }}
+            type=semver,pattern=v{{major}}.{{minor}},suffix=-production,value=${{ needs.resolve-tags.outputs.client-version-plain }}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - id: pick
+        run: |
+          set -euo pipefail
+          first="$(printf '%s\n' '${{ steps.meta.outputs.tags }}' | head -n1)"
+          tag="${first##*:}"
+          echo "deploy-tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          target: runtime
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=client-production
+          cache-to: type=gha,scope=client-production,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign image
+        run: cosign sign --yes ${{ env.CLIENT_IMAGE }}@${{ steps.build.outputs.digest }}
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ${{ env.CLIENT_IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  scan-release-staging:
+    name: Security Scan (staging images)
+    runs-on: ubuntu-24.04
+    needs: [build-api-staging, build-client-staging]
     permissions:
       contents: read
       packages: read
@@ -191,7 +371,7 @@ jobs:
       - name: Scan API image
         uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
         with:
-          image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api.outputs.digest }}
+          image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api-staging.outputs.digest }}
           format: table
           severity: CRITICAL,HIGH
           exit-code: "1"
@@ -199,19 +379,54 @@ jobs:
       - name: Scan Client image
         uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
         with:
-          image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client.outputs.digest }}
+          image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client-staging.outputs.digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  scan-release-production:
+    name: Security Scan (production images)
+    runs-on: ubuntu-24.04
+    needs: [build-api-production, build-client-production]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+        with:
+          image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api-production.outputs.digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Scan Client image
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+        with:
+          image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client-production.outputs.digest }}
           format: table
           severity: CRITICAL,HIGH
           exit-code: "1"
 
   deploy-staging:
     name: Deploy Staging
-    needs: [resolve-tags, build-api, build-client, scan-images]
+    needs:
+      - resolve-tags
+      - build-api-staging
+      - build-client-staging
+      - scan-release-staging
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
-      api-version: ${{ needs.resolve-tags.outputs.api-tag }}
-      client-version: ${{ needs.resolve-tags.outputs.client-tag }}
+      api-version: ${{ needs.build-api-staging.outputs.deploy-tag }}
+      client-version: ${{ needs.build-client-staging.outputs.deploy-tag }}
     secrets: inherit
 
   e2e-staging:
@@ -251,10 +466,88 @@ jobs:
 
   deploy-production:
     name: Deploy Production
-    needs: [resolve-tags, build-api, build-client, e2e-staging]
+    needs:
+      - resolve-tags
+      - build-api-production
+      - build-client-production
+      - scan-release-production
+      - e2e-staging
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
-      api-version: ${{ needs.resolve-tags.outputs.api-tag }}
-      client-version: ${{ needs.resolve-tags.outputs.client-tag }}
+      api-version: ${{ needs.build-api-production.outputs.deploy-tag }}
+      client-version: ${{ needs.build-client-production.outputs.deploy-tag }}
     secrets: inherit
+
+  summarize-releases:
+    name: Annotate releases (deployment summary)
+    needs:
+      - release-please
+      - resolve-tags
+      - build-api-staging
+      - build-client-staging
+      - build-api-production
+      - build-client-production
+      - deploy-production
+    if: >-
+      always()
+      && needs.release-please.outputs.releases-created == 'true'
+      && needs.deploy-production.result == 'success'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Append deployment summary to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_STAGING_TAG: ${{ needs.build-api-staging.outputs.deploy-tag }}
+          CLIENT_STAGING_TAG: ${{ needs.build-client-staging.outputs.deploy-tag }}
+          API_PROD_TAG: ${{ needs.build-api-production.outputs.deploy-tag }}
+          CLIENT_PROD_TAG: ${{ needs.build-client-production.outputs.deploy-tag }}
+          API_VER: ${{ needs.resolve-tags.outputs.api-version-plain }}
+          CLIENT_VER: ${{ needs.resolve-tags.outputs.client-version-plain }}
+        run: |
+          set -euo pipefail
+
+          NOTES="$(mktemp)"
+          ts="$(date -u '+%Y-%m-%dT%H:%MZ')"
+          printf '%s\n' \
+            "" \
+            "### CI deployment summary (${ts})" \
+            "" \
+            "| Environment | Base URL | API tag | Client tag |" \
+            "|-------------|----------|---------|------------|" \
+            "| Staging | https://staging.certification.dhis2.org | ${API_STAGING_TAG} | ${CLIENT_STAGING_TAG} |" \
+            "| Production | https://certification.dhis2.org | ${API_PROD_TAG} | ${CLIENT_PROD_TAG} |" \
+            "" \
+            >"${NOTES}"
+
+          try_patch_release() {
+            local comp="$1"
+            local ver="$2"
+
+            local cands=("${comp}/v${ver}" "${comp}-v${ver}")
+            for tag in "${cands[@]}"; do
+              if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" &>/dev/null; then
+                local merged
+                merged="$(mktemp)"
+                gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" --json body -q .body >"${merged}"
+                printf '\n' >>"${merged}"
+                cat "${NOTES}" >>"${merged}"
+                gh release edit "${tag}" --repo "${GITHUB_REPOSITORY}" --notes-file "${merged}"
+                printf 'Patched release %s\n' "${tag}"
+                return 0
+              fi
+            done
+            printf '::notice::No GitHub Release found for %s v%s (tried %s); skip.\n' \
+              "${comp}" "${ver}" "${cands[*]}"
+            return 0
+          }
+
+          try_patch_release api "${API_VER}"
+          try_patch_release client "${CLIENT_VER}"
+
+          {
+            echo "## Release deployment summary"
+            cat "${NOTES}"
+          } >>"${GITHUB_STEP_SUMMARY}"

@@ -251,23 +251,25 @@ graph LR
         BA & BC --> SC[scan-images]
     end
 
-    subgraph Release["release.yml (on release)"]
+    subgraph Release["release.yml (on release cut)"]
         RP[release-please] --> RT[resolve-tags]
-        RT --> BA2[build-api] & BC2[build-client]
-        BA2 & BC2 --> SC2[scan-images]
-        SC2 --> DS[deploy-staging]
+        RT --> BAst[build-api-staging]
+        RT --> BApr[build-api-production]
+        RT --> BCst[build-client-staging]
+        RT --> BCpr[build-client-production]
+        BAst & BCst --> SCst[scan-staging-images]
+        BApr & BCpr --> SCpr[scan-production-images]
+        SCst --> DS[deploy-staging]
         DS --> E2E[e2e-staging]
-        E2E --> DP[deploy-production]
-        DP --> SM[smoke-test]
-        SM -->|failure| RB[rollback]
+        SCpr & E2E --> DP[deploy-production]
+        DP --> SR[summarize-releases]
     end
 
     style DS fill:#e8f5e9,stroke:#4CAF50
     style DP fill:#fff3e0,stroke:#FF9800
-    style RB fill:#ffebee,stroke:#f44336
 ```
 
-**Environment promotion:** staging (auto) → E2E gate → production (manual approval) → smoke test → auto-rollback on failure. See also `deploy.yml` for path-to-production details.
+**Environment promotion:** staging images (GitHub **`staging`** env) deploy → E2E gate → production images built under GitHub **`production`** env (required reviewers gate the push), then **`deploy-production`** triggers `deploy.yml` (smoke + rollback live inside that reusable workflow). See `release.yml` and `deploy.yml` for ordering.
 
 ---
 

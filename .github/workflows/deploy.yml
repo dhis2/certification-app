@@ -155,8 +155,9 @@ jobs:
     needs: [validate]
     runs-on:
       - self-hosted
-      - linux
-      - x64
+      # Match GitHub UI label casing from the staging runner (`Linux`, `X64`); labels are case-sensitive.
+      - Linux
+      - X64
       - docker
       - deploy
       - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
@@ -384,8 +385,8 @@ jobs:
     name: Smoke test (${{ inputs.environment }})
     runs-on:
       - self-hosted
-      - linux
-      - x64
+      - Linux
+      - X64
       - docker
       - deploy
       - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
@@ -417,8 +418,8 @@ jobs:
     name: Rollback (${{ inputs.environment }})
     runs-on:
       - self-hosted
-      - linux
-      - x64
+      - Linux
+      - X64
       - docker
       - deploy
       - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
