@@ -38,6 +38,9 @@ services:
       - redis_password
     cap_drop:
       - ALL
+    cap_add:
+      - SETGID
+      - SETUID
     read_only: true
     security_opt:
       - no-new-privileges:true
