@@ -124,7 +124,7 @@ jobs:
           fail_ci_if_error: false
 
   audit:
-    name: Security Audit
+    name: NPM Audit
     runs-on: ubuntu-24.04
     permissions:
       contents: read
