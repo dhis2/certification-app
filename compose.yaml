@@ -54,7 +54,7 @@ services:
       - >-
         REDIS_PASSWORD=$$(cat /run/secrets/redis_password 2>/dev/null ||
         printf '%s' "$$REDIS_PASSWORD");
-        exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+        exec gosu redis redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
     restart: always
     healthcheck:
       test:
