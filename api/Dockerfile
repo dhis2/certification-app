@@ -39,6 +39,7 @@ WORKDIR /app
 
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=build --chown=nodejs:nodejs /app/templates ./templates
 COPY --chown=nodejs:nodejs package.json ./
 RUN mkdir -p /app/logs && \
     chown -R nodejs:nodejs /app/logs

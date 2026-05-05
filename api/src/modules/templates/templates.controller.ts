@@ -12,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
   Header,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -336,10 +337,16 @@ export class TemplatesController {
     @Body() dto: TemplateImportDto,
     @ActiveUser() user: ActiveUserData,
   ): Promise<ImportResultDto> {
-    const content =
-      dto.format === ImportFormat.JSON
-        ? JSON.stringify(JSON.parse(dto.content))
-        : dto.content;
+    let content = dto.content;
+    if (dto.format === ImportFormat.JSON) {
+      try {
+        content = JSON.stringify(JSON.parse(dto.content));
+      } catch (err) {
+        throw new BadRequestException(
+          `Invalid JSON content: ${err instanceof Error ? err.message : 'parse error'}`,
+        );
+      }
+    }
 
     return this.loaderService.syncFromContent(content, user.sub);
   }

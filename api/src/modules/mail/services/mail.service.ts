@@ -28,25 +28,35 @@ export class MailService {
     @Inject(mailConfig.KEY)
     private readonly config: MailConfig,
   ) {
-    if (this.config.enabled && this.config.host) {
+    if (!this.config.enabled) {
+      this.transporter = null;
+      this.logger.warn(
+        'Mail is disabled (MAIL_ENABLED=false). No transactional email will be sent.',
+      );
+    } else if (!this.config.host) {
+      this.transporter = null;
+      this.logger.warn(
+        'Mail is enabled but MAIL_HOST is empty. Set MAIL_HOST (and credentials) or set MAIL_ENABLED=false.',
+      );
+    } else {
+      const useAuth = Boolean(this.config.user && this.config.password);
+      if (!useAuth) {
+        this.logger.warn(
+          'Mail SMTP auth is not configured (MAIL_USER / MAIL_PASSWORD empty). Sending may fail unless the server allows unauthenticated relay.',
+        );
+      }
       this.transporter = createTransport({
         host: this.config.host,
         port: this.config.port,
         secure: this.config.secure,
-        auth:
-          this.config.user && this.config.password
-            ? {
-                user: this.config.user,
-                pass: this.config.password,
-              }
-            : undefined,
+        requireTLS: !this.config.secure && this.config.port === 587,
+        auth: useAuth
+          ? { user: this.config.user, pass: this.config.password }
+          : undefined,
       });
       this.logger.log(
-        `Mail service initialized with host: ${this.config.host}`,
+        `Mail transporter ready (host=${this.config.host}, port=${this.config.port.toString()}, secure=${this.config.secure.toString()})`,
       );
-    } else {
-      this.transporter = null;
-      this.logger.warn('Mail service disabled or not configured');
     }
 
     this.fromAddress = `"${this.config.fromName}" <${this.config.fromAddress}>`;
@@ -55,7 +65,7 @@ export class MailService {
   async send(options: SendMailOptions): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(
-        `Mail not sent (disabled): ${options.subject} to ${options.to}`,
+        `Mail not sent (no SMTP transporter): ${options.subject} to ${options.to}`,
       );
       return false;
     }
