@@ -131,6 +131,7 @@ services:
       JWT_TOKEN_ISSUER: ${JWT_TOKEN_ISSUER?Variable not set}
       JWT_ALGORITHM: "HS256"
       CORS_ORIGIN: ${CORS_ORIGIN?Variable not set}
+      OTP_ENCRYPTION_KEY: ${OTP_ENCRYPTION_KEY:-}
       AUDIT_LOG_HMAC_KEY: ${AUDIT_LOG_HMAC_KEY:-}
     env_file:
       - .env

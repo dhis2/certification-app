@@ -76,6 +76,9 @@ services:
       DB_HOST: dhis2-cert-db
       REDIS_HOST: dhis2-cert-redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OTP_ENCRYPTION_KEY: ${OTP_ENCRYPTION_KEY:-}
+    env_file:
+      - .env
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     networks: *common-networks
