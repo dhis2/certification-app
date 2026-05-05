@@ -41,18 +41,22 @@
 
 .hero::before {
     content: '';
-    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 4px;
     background: var(--accent);
 }
 
 .heroInner {
-    padding: var(--spacers-dp24) var(--spacers-dp24) var(--spacers-dp20);
+    padding: 40px var(--spacers-dp24) var(--spacers-dp20);
 }
 
 .heroEyebrow {
     margin: 0 0 var(--spacers-dp4);
     font-size: 0.6875rem;
+    line-height: 1.4;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
