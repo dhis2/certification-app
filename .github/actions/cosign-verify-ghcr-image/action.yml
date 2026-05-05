@@ -51,7 +51,7 @@ runs:
         RE_ESC="$(python3 -c "import re, sys; print(re.escape(sys.argv[1]))" "${GITHUB_REPOSITORY}")"
         IDENTITY_RE="^https://github.com/${RE_ESC}/\\.github/workflows/.*"
 
-        echo "Verifying cosign signature for: ${IMAGE_REF}"
+        echo "::notice::Cosign verify ${IMAGE_REF}"
         cosign verify "${IMAGE_REF}" \
           --certificate-identity-regexp "${IDENTITY_RE}" \
           --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'

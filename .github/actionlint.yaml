@@ -2,3 +2,9 @@
 self-hosted-runner:
   labels:
     - deploy
+    - linux
+    - x64
+    - docker
+    - self-hosted
+    - dhis2-cert-staging-server
+    - dhis2-cert-prod-server

@@ -8,7 +8,7 @@ export const configuration = () => ({
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     name: process.env.DB_NAME,
-    ssl: process.env.DB_SSL === 'true',
+    ssl: process.env.DATABASE_SSL === 'true' || process.env.DB_SSL === 'true',
   },
 
   jwt: {

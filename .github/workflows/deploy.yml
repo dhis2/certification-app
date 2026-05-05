@@ -1,3 +1,4 @@
+---
 name: Deploy
 
 on:
@@ -6,16 +7,22 @@ on:
       environment:
         required: true
         type: string
-      api-tag:
+      api-version:
+        description: Desired API image tag (resolved against GHCR until one matches).
         required: true
         type: string
-      client-tag:
+      client-version:
+        description: Desired client image tag (resolved against GHCR until one matches).
         required: true
         type: string
       skip_migrations:
         required: false
         type: boolean
         default: false
+      reason:
+        required: false
+        type: string
+        default: ""
 
   workflow_dispatch:
     inputs:
@@ -26,41 +33,146 @@ on:
         options:
           - staging
           - production
-      api-tag:
-        description: "API image tag (e.g., sha-abc1234 or v1.2.3)"
+      api-version:
+        description: "API image tag to deploy (e.g. sha-<full_sha> or v1.2.3[-staging|-production])."
         required: true
         type: string
-      client-tag:
-        description: "Client image tag (e.g., sha-abc1234 or v1.2.3)"
+      client-version:
+        description: "Client image tag to deploy (same shape as api-version)."
         required: true
         type: string
       skip_migrations:
-        description: Skip database migrations
+        description: Skip database migrations (not recommended except rollback/recovery).
         required: false
         default: false
         type: boolean
+      reason:
+        description: Brief audit note (manual runs).
+        required: false
+        type: string
+        default: ""
 
 permissions: {}
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository }}/api
-  CLIENT_IMAGE: ghcr.io/${{ github.repository }}/client
 
 jobs:
+  validate:
+    name: Resolve image tags
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      api_image_tag: ${{ steps.resolve.outputs.api_image_tag }}
+      client_image_tag: ${{ steps.resolve.outputs.client_image_tag }}
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve mutable tags against the registry
+        id: resolve
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          API_VERSION_RAW: ${{ inputs.api-version }}
+          CLIENT_VERSION_RAW: ${{ inputs.client-version }}
+        run: |
+          set -euo pipefail
+
+          suffix="-staging"
+          if [ "${ENVIRONMENT}" = "production" ]; then
+            suffix="-production"
+          fi
+
+          repo_lc="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+
+          build_candidates() {
+            local raw="$1"
+            local -a cand=("${raw}")
+            if [[ "${raw}" != v* ]]; then
+              cand+=("v${raw}")
+            fi
+            if [[ "${raw}" != *"${suffix}" ]]; then
+              cand+=("${raw}${suffix}")
+              if [[ "${raw}" != v* ]]; then
+                cand+=("v${raw}${suffix}")
+              fi
+            fi
+            printf '%s\n' "${cand[@]}" | awk '!seen[$0]++'
+          }
+
+          first_manifest() {
+            local image="$1"
+            shift
+            local tried=()
+
+            local t
+            for t in "$@"; do
+              tried+=("${image}:${t}")
+              if docker manifest inspect "${image}:${t}" >/dev/null 2>&1; then
+                printf '%s\n' "${t}"
+                return 0
+              fi
+            done
+
+            echo "::error::No manifest matched for ${image}. Tried:" >&2
+            printf '  - %s\n' "${tried[@]}" >&2
+            return 1
+          }
+
+          resolve_for() {
+            local kind="$1"
+            local img="$2"
+            local raw="$3"
+            local -a cands
+
+            mapfile -t cands < <(build_candidates "${raw}")
+
+            local tag
+            tag="$(first_manifest "${img}" "${cands[@]}")"
+            printf 'Resolved %s tag -> %s\n' "${kind}" "${tag}"
+            case "${kind}" in
+              api) printf 'api_image_tag=%s\n' "${tag}" >> "${GITHUB_OUTPUT}" ;;
+              client) printf 'client_image_tag=%s\n' "${tag}" >> "${GITHUB_OUTPUT}" ;;
+              *)
+                printf 'resolver internal error bad kind=%s\n' "${kind}" >&2
+                exit 2
+                ;;
+            esac
+          }
+
+          resolve_for api "${REGISTRY}/${repo_lc}/api" "${API_VERSION_RAW}"
+          resolve_for client "${REGISTRY}/${repo_lc}/client" "${CLIENT_VERSION_RAW}"
+
   deploy:
     name: Deploy to ${{ inputs.environment }}
-    runs-on: [self-hosted, linux, x64, deploy]
+    needs: [validate]
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - docker
+      - deploy
+      - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
+    outputs:
+      api_image_tag: ${{ needs.validate.outputs.api_image_tag }}
+      client_image_tag: ${{ needs.validate.outputs.client_image_tag }}
     permissions:
       contents: read
       packages: read
     environment:
       name: ${{ inputs.environment }}
-      url: https://${{ inputs.environment == 'production' && vars.DOMAIN || format('staging.{0}', vars.DOMAIN) }}
+      url: https://${{ vars.DOMAIN }}
     env:
       APP_DIR: /home/deploy/dhis2-cert-${{ inputs.environment }}
-      API_TAG: ${{ inputs.api-tag }}
-      CLIENT_TAG: ${{ inputs.client-tag }}
+      API_IMAGE: ghcr.io/${{ github.repository }}/api
+      CLIENT_IMAGE: ghcr.io/${{ github.repository }}/client
     steps:
       - name: Fix workspace permissions
         run: sudo chown -R "$(whoami):$(id -gn)" "${{ github.workspace }}" || true
@@ -71,128 +183,247 @@ jobs:
           clean: true
 
       - name: Authenticate to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          DOCKER_LOGIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "${DOCKER_LOGIN_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Prepare deployment directory
-        run: mkdir -p "${{ env.APP_DIR }}/secrets"
+        run: install -d -m 0700 "${{ env.APP_DIR }}/secrets"
 
-      - name: Write secrets
+      - name: Materialize Docker secret files (mode 444)
+        env:
+          SECRET_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SECRET_REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          SECRET_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SECRET_AUDIT_LOG_HMAC_KEY: ${{ secrets.AUDIT_LOG_HMAC_KEY }}
+          SECRET_SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          RUN_SEEDS_FLAG: ${{ vars.RUN_SEEDS || 'false' }}
         run: |
-          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/db_password"
-          echo -n "${{ secrets.DB_PASSWORD }}" > "${{ env.APP_DIR }}/secrets/db_password"
-          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/redis_password"
-          echo -n "${{ secrets.REDIS_PASSWORD }}" > "${{ env.APP_DIR }}/secrets/redis_password"
-          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/jwt_secret"
-          echo -n "${{ secrets.JWT_SECRET }}" > "${{ env.APP_DIR }}/secrets/jwt_secret"
-          install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/signing_key_passphrase"
-          echo -n "${{ secrets.SIGNING_KEY_PASSPHRASE }}" > "${{ env.APP_DIR }}/secrets/signing_key_passphrase"
-          if [ "${{ vars.USE_VAULT }}" = "true" ]; then
-            install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/vault_role_id"
-            echo -n "${{ secrets.VAULT_ROLE_ID }}" > "${{ env.APP_DIR }}/secrets/vault_role_id"
-            install -m 600 /dev/null "${{ env.APP_DIR }}/secrets/vault_secret_id"
-            echo -n "${{ secrets.VAULT_SECRET_ID }}" > "${{ env.APP_DIR }}/secrets/vault_secret_id"
+          set -euo pipefail
+          secrets_dir="${{ env.APP_DIR }}/secrets"
+
+          write_444 () {
+            local path="$1" value="$2"
+            printf '%s' "${value}" > "${path}"
+            chmod 0444 "${path}"
+          }
+
+          write_444 "${secrets_dir}/db_password" "${SECRET_DB_PASSWORD}"
+          write_444 "${secrets_dir}/redis_password" "${SECRET_REDIS_PASSWORD}"
+          write_444 "${secrets_dir}/jwt_secret" "${SECRET_JWT_SECRET}"
+          write_444 "${secrets_dir}/audit_log_hmac_key" "${SECRET_AUDIT_LOG_HMAC_KEY}"
+
+          if [ "${RUN_SEEDS_FLAG}" = "true" ]; then
+            write_444 "${secrets_dir}/seed_admin_password" "${SECRET_SEED_ADMIN_PASSWORD}"
+          else
+            write_444 "${secrets_dir}/seed_admin_password" ""
           fi
 
-      - name: Generate .env file
+      - name: Write non-sensitive .env (credentials via *_FILE only)
+        env:
+          PORT: ${{ vars.PORT }}
+          DOMAIN_HOST: ${{ vars.DOMAIN }}
+          STACK_NAME_DEPLOY: ${{ vars.STACK_NAME }}
+          DB_POOL: ${{ vars.DB_POOL_SIZE || '10' }}
+          DATABASE_SSL: ${{ vars.DATABASE_SSL || 'false' }}
+          RUN_SEEDS_FLAG: ${{ vars.RUN_SEEDS || 'false' }}
+          JWT_ACCESS_TOKEN_TTL: ${{ vars.JWT_ACCESS_TOKEN_TTL }}
+          JWT_REFRESH_TOKEN_TTL: ${{ vars.JWT_REFRESH_TOKEN_TTL }}
+          JWT_TOKEN_ISSUER: ${{ vars.JWT_TOKEN_ISSUER }}
+          JWT_TOKEN_AUDIENCE: ${{ vars.JWT_TOKEN_AUDIENCE }}
+          CORS_ORIGIN_URI: ${{ vars.CORS_ORIGIN }}
+          VALUE_DB_USER: ${{ secrets.DB_USER }}
+          VALUE_DB_NAME: ${{ secrets.DB_NAME }}
+          VALUE_SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
+          USE_VAULT_FLAG: ${{ vars.USE_VAULT || 'false' }}
+          DEPLOY_REASON: ${{ inputs.reason }}
+          RESOLVED_API_TAG: ${{ needs.validate.outputs.api_image_tag }}
+          RESOLVED_CLIENT_TAG: ${{ needs.validate.outputs.client_image_tag }}
+          API_IMAGE_ESC: ghcr.io/${{ github.repository }}/api
+          CLIENT_IMAGE_ESC: ghcr.io/${{ github.repository }}/client
         run: |
-          cat > "${{ env.APP_DIR }}/.env" <<'ENVEOF'
-          NODE_ENV=production
-          PORT=${{ vars.PORT }}
-          DOMAIN=${{ inputs.environment == 'production' && vars.DOMAIN || format('staging.{0}', vars.DOMAIN) }}
-          STACK_NAME=${{ vars.STACK_NAME }}
-          DB_HOST=dhis2-cert-db
-          DB_PORT=5432
-          DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_POOL_SIZE=${{ vars.DB_POOL_SIZE || '10' }}
-          DATABASE_SSL=${{ vars.DATABASE_SSL || 'false' }}
-          RUN_SEEDS=${{ vars.RUN_SEEDS || 'false' }}
-          SEED_ADMIN_EMAIL=${{ secrets.SEED_ADMIN_EMAIL }}
-          SEED_ADMIN_PASSWORD=${{ secrets.SEED_ADMIN_PASSWORD }}
-          REDIS_HOST=dhis2-cert-redis
-          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          JWT_ACCESS_TOKEN_TTL=${{ vars.JWT_ACCESS_TOKEN_TTL }}
-          JWT_REFRESH_TOKEN_TTL=${{ vars.JWT_REFRESH_TOKEN_TTL }}
-          JWT_TOKEN_ISSUER=${{ vars.JWT_TOKEN_ISSUER }}
-          JWT_TOKEN_AUDIENCE=${{ vars.JWT_TOKEN_AUDIENCE }}
-          CORS_ORIGIN=${{ vars.CORS_ORIGIN }}
-          SIGNING_KEY_PATH=${{ vars.SIGNING_KEY_PATH }}
-          SIGNING_PUBLIC_KEY_PATH=${{ vars.SIGNING_PUBLIC_KEY_PATH }}
-          SIGNING_KEY_PASSPHRASE=${{ secrets.SIGNING_KEY_PASSPHRASE }}
-          USE_VAULT=${{ vars.USE_VAULT || 'false' }}
-          VAULT_ADDR=${{ vars.VAULT_ADDR || '' }}
-          VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID || '' }}
-          VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID || '' }}
-          DHIS2_CERT_API_IMAGE=${{ env.API_IMAGE }}
-          DHIS2_CERT_CLIENT_IMAGE=${{ env.CLIENT_IMAGE }}
-          TAG=${{ env.API_TAG }}
-          CLIENT_TAG=${{ env.CLIENT_TAG }}
-          ENVEOF
+          set -euo pipefail
 
-      - name: Copy compose files
+          APP_DIR_ESC="${{ env.APP_DIR }}"
+          path="${APP_DIR_ESC}/.env"
+          api_img="${API_IMAGE_ESC}"
+          client_img="${CLIENT_IMAGE_ESC}"
+          {
+            printf '%s\n' "# Generated by GitHub Actions (${DEPLOY_REASON:-auto}); do not edit by hand."
+            printf '%s\n' NODE_ENV=production
+            printf 'PORT=%s\n' "${PORT}"
+            printf 'DOMAIN=%s\n' "${DOMAIN_HOST}"
+            printf 'STACK_NAME=%s\n' "${STACK_NAME_DEPLOY}"
+            printf 'SECRETS_DIR=%s/secrets\n' "${APP_DIR_ESC}"
+            printf '%s\n' 'COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.traefik.yaml'
+            printf '%s\n' DB_HOST=dhis2-cert-db
+            printf '%s\n' DB_PORT=5432
+            printf 'DB_USER=%s\n' "${VALUE_DB_USER}"
+            printf 'DB_NAME=%s\n' "${VALUE_DB_NAME}"
+            printf 'DB_POOL_SIZE=%s\n' "${DB_POOL}"
+            printf 'DATABASE_SSL=%s\n' "${DATABASE_SSL}"
+            printf '%s\n' DB_PASSWORD_FILE=/run/secrets/db_password
+            printf '%s\n' REDIS_HOST=dhis2-cert-redis
+            printf '%s\n' REDIS_PASSWORD_FILE=/run/secrets/redis_password
+            printf '%s\n' JWT_SECRET_FILE=/run/secrets/jwt_secret
+            printf 'JWT_ACCESS_TOKEN_TTL=%s\n' "${JWT_ACCESS_TOKEN_TTL}"
+            printf 'JWT_REFRESH_TOKEN_TTL=%s\n' "${JWT_REFRESH_TOKEN_TTL}"
+            printf 'JWT_TOKEN_ISSUER=%s\n' "${JWT_TOKEN_ISSUER}"
+            printf 'JWT_TOKEN_AUDIENCE=%s\n' "${JWT_TOKEN_AUDIENCE}"
+            printf '%s\n' AUDIT_LOG_HMAC_KEY_FILE=/run/secrets/audit_log_hmac_key
+            printf 'CORS_ORIGIN=%s\n' "${CORS_ORIGIN_URI}"
+            printf 'RUN_SEEDS=%s\n' "${RUN_SEEDS_FLAG}"
+            printf 'SEED_ADMIN_EMAIL=%s\n' "${VALUE_SEED_ADMIN_EMAIL}"
+            printf '%s\n' SEED_ADMIN_PASSWORD_FILE=/run/secrets/seed_admin_password
+            printf 'USE_VAULT=%s\n' "${USE_VAULT_FLAG}"
+            printf 'DHIS2_CERT_API_IMAGE=%s\n' "${api_img}"
+            printf 'DHIS2_CERT_CLIENT_IMAGE=%s\n' "${client_img}"
+            printf 'TAG=%s\n' "${RESOLVED_API_TAG}"
+            printf 'CLIENT_TAG=%s\n' "${RESOLVED_CLIENT_TAG}"
+          } >"${path}"
+          chmod 0644 "${path}"
+
+      - name: Refresh compose manifests on the host
         run: |
-          cp compose.yaml "${{ env.APP_DIR }}/"
-          cp compose.prod.yaml "${{ env.APP_DIR }}/"
+          set -euo pipefail
+          install -DTm0644 compose.yaml "${{ env.APP_DIR }}/compose.yaml"
+          install -DTm0644 compose.prod.yaml "${{ env.APP_DIR }}/compose.prod.yaml"
+          install -DTm0644 compose.traefik.yaml "${{ env.APP_DIR }}/compose.traefik.yaml"
 
-      - name: Pull images
+      - name: Pull Compose images
         working-directory: ${{ env.APP_DIR }}
-        run: docker compose -f compose.yaml -f compose.prod.yaml pull
+        run: |
+          set -euo pipefail
+          docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml --env-file .env pull
 
-      - name: Store previous image for rollback
+      - name: Cosign verify API image
+        uses: ./.github/actions/cosign-verify-ghcr-image
+        with:
+          registry: ghcr.io
+          tag: ${{ needs.validate.outputs.api_image_tag }}
+          image-suffix: /api
+
+      - name: Cosign verify client image
+        uses: ./.github/actions/cosign-verify-ghcr-image
+        with:
+          registry: ghcr.io
+          tag: ${{ needs.validate.outputs.client_image_tag }}
+          image-suffix: /client
+
+      - name: Snapshot current images for rollback
         working-directory: ${{ env.APP_DIR }}
         run: |
-          docker inspect dhis2-cert-api --format='{{.Config.Image}}' 2>/dev/null > .previous-api-image || echo "none" > .previous-api-image
-          docker inspect dhis2-cert-client --format='{{.Config.Image}}' 2>/dev/null > .previous-client-image || echo "none" > .previous-client-image
+          set -euo pipefail
 
-      - name: Run database migrations
+          snapshot_ref () {
+            local container="$1" outfile="$2"
+            if docker inspect "${container}" >/dev/null 2>&1; then
+              docker inspect "${container}" | python3 -c "import sys, json; sys.stdout.write(json.load(sys.stdin)[0]['Config']['Image'].strip() + chr(10))" > "${outfile}"
+            else
+              printf 'none\n' > "${outfile}"
+            fi
+          }
+
+          snapshot_ref dhis2-cert-api .previous-api-image
+          snapshot_ref dhis2-cert-client .previous-client-image
+
+      - name: Run database migrations (optional)
         if: ${{ !inputs.skip_migrations }}
         working-directory: ${{ env.APP_DIR }}
+        env:
+          DB_HEALTH_USER: ${{ secrets.DB_USER }}
         run: |
-          docker compose -f compose.yaml -f compose.prod.yaml up -d dhis2-cert-db
-          timeout 60 bash -c 'until docker compose -f compose.yaml -f compose.prod.yaml exec -T dhis2-cert-db pg_isready -U "${{ secrets.DB_USER }}"; do sleep 2; done'
-          docker compose -f compose.yaml -f compose.prod.yaml up dhis2-cert-migrations --exit-code-from dhis2-cert-migrations
+          set -euo pipefail
+          dcc() {
+            docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml --env-file .env "$@"
+          }
+          dcc up -d dhis2-cert-db
+          waited=0
+          until dcc exec -T dhis2-cert-db pg_isready -U "${DB_HEALTH_USER}"; do
+            if [ "${waited}" -ge 90 ]; then
+              echo '::error::Postgres did not become ready in time.'
+              exit 1
+            fi
+            sleep 2
+            waited=$((waited + 2))
+          done
+          dcc up dhis2-cert-migrations --exit-code-from dhis2-cert-migrations
 
-      - name: Deploy services
+      - name: Bring stack up and wait on healthchecks
         working-directory: ${{ env.APP_DIR }}
-        run: docker compose -f compose.yaml -f compose.prod.yaml up -d --no-deps --force-recreate dhis2-cert-api dhis2-cert-client
+        run: |
+          set -euo pipefail
+          docker compose \
+            -f compose.yaml \
+            -f compose.prod.yaml \
+            -f compose.traefik.yaml \
+            --env-file .env \
+            up -d \
+            --remove-orphans \
+            --wait \
+            --wait-timeout 180
 
-      - name: Wait for healthy
+      - name: Wait for API liveness socket
         working-directory: ${{ env.APP_DIR }}
-        run: timeout 120 bash -c 'until docker compose -f compose.yaml -f compose.prod.yaml exec -T dhis2-cert-api wget --spider -q http://localhost:${{ vars.PORT }}/health/live; do sleep 3; done'
+        env:
+          PORT_CHECK: ${{ vars.PORT }}
+        run: |
+          set -euo pipefail
+          waited=0
+          until docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml \
+            exec -T dhis2-cert-api wget --spider -q "http://localhost:${PORT_CHECK}/health/live"; do
+            if [ "${waited}" -ge 120 ]; then
+              echo '::error::API liveness timed out.'
+              exit 1
+            fi
+            sleep 3
+            waited=$((waited + 3))
+          done
 
   smoke-test:
-    name: Smoke Test (${{ inputs.environment }})
-    runs-on: [self-hosted, linux, x64, deploy]
+    name: Smoke test (${{ inputs.environment }})
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - docker
+      - deploy
+      - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
     needs: [deploy]
     permissions:
       contents: read
     env:
-      BASE_URL: https://${{ inputs.environment == 'production' && vars.DOMAIN || format('staging.{0}', vars.DOMAIN) }}
+      BASE_URL: https://${{ vars.DOMAIN }}
     steps:
-      - name: Liveness check
-        run: curl -sf "${{ env.BASE_URL }}/health/live" || exit 1
+      - name: Liveness probe
+        run: curl -sf "${{ env.BASE_URL }}/health/live"
 
-      - name: Readiness check
-        run: curl -sf "${{ env.BASE_URL }}/health/ready" || exit 1
+      - name: Readiness probe
+        run: curl -sf "${{ env.BASE_URL }}/health/ready"
 
-      - name: API functional check
-        run: curl -sf "${{ env.BASE_URL }}/api/v1/templates" || exit 1
+      - name: Public API sanity
+        run: curl -sf "${{ env.BASE_URL }}/api/v1/templates"
 
-      - name: Client reachable
-        run: curl -sf "${{ env.BASE_URL }}/" || exit 1
+      - name: Client SPA
+        run: curl -sf "${{ env.BASE_URL }}/"
 
-      - name: Response time check
+      - name: Liveness response time ceiling (≤5s)
         run: |
-          RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" "${{ env.BASE_URL }}/health/live")
-          awk "BEGIN { exit ($RESPONSE_TIME > 5.0) ? 1 : 0 }"
+          set -euo pipefail
+          RESPONSE_TIME="$(curl -s -o /dev/null -w '%{time_total}' "${{ env.BASE_URL }}/health/live")"
+          awk -v rt="${RESPONSE_TIME}" 'BEGIN { exit (rt <= 5.0) ? 0 : 1 }'
 
   rollback:
     name: Rollback (${{ inputs.environment }})
-    runs-on: [self-hosted, linux, x64, deploy]
-    needs: [smoke-test]
-    if: failure()
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - docker
+      - deploy
+      - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
+    needs: [validate, deploy, smoke-test]
+    if: ${{ always() && needs.deploy.result == 'success' && needs.smoke-test.result == 'failure' }}
     permissions:
       contents: read
       packages: read
@@ -200,44 +431,134 @@ jobs:
       APP_DIR: /home/deploy/dhis2-cert-${{ inputs.environment }}
     steps:
       - name: Authenticate to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          DOCKER_LOGIN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "${DOCKER_LOGIN_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Rollback API
+      - name: Recreate api and client from snapshot tags
         working-directory: ${{ env.APP_DIR }}
         run: |
-          PREV_API=$(cat .previous-api-image 2>/dev/null || echo "none")
-          PREV_CLIENT=$(cat .previous-client-image 2>/dev/null || echo "none")
+          set -euo pipefail
+          echo "::warning::Rolling back failed deploy for ${{ inputs.environment }}"
 
-          if [ "$PREV_API" = "none" ] || [ -z "$PREV_API" ]; then
-            echo "No previous API image found -- manual intervention required"
+          PREV_API="$(cat .previous-api-image 2>/dev/null || printf 'none\n')"
+          PREV_CLIENT="$(cat .previous-client-image 2>/dev/null || printf 'none\n')"
+
+          if [ "${PREV_API}" = "none" ] || [ -z "${PREV_API}" ]; then
+            echo "::error::No previous API image recorded — rollback cannot continue unattended."
             exit 1
           fi
 
-          PREV_API_REPO=$(echo "$PREV_API" | rev | cut -d: -f2- | rev)
-          PREV_API_TAG=$(echo "$PREV_API" | rev | cut -d: -f1 | rev)
-          export DHIS2_CERT_API_IMAGE="$PREV_API_REPO"
-          export TAG="$PREV_API_TAG"
+          api_tag="${PREV_API##*:}"
+          colon_suffix=":${api_tag}"
+          PREV_API_REPO="${PREV_API%"${colon_suffix}"}"
+          PREV_API_TAG="${api_tag}"
 
-          if [ "$PREV_CLIENT" != "none" ] && [ -n "$PREV_CLIENT" ]; then
-            PREV_CLIENT_REPO=$(echo "$PREV_CLIENT" | rev | cut -d: -f2- | rev)
-            PREV_CLIENT_TAG=$(echo "$PREV_CLIENT" | rev | cut -d: -f1 | rev)
-            export DHIS2_CERT_CLIENT_IMAGE="$PREV_CLIENT_REPO"
-            export CLIENT_TAG="$PREV_CLIENT_TAG"
+          PATCH_CLIENT="0"
+          PREV_CLIENT_REPO=""
+          PREV_CLIENT_TAG=""
+          if [ "${PREV_CLIENT}" != "none" ] && [ -n "${PREV_CLIENT}" ]; then
+            client_tag="${PREV_CLIENT##*:}"
+            client_colon_suffix=":${client_tag}"
+            PREV_CLIENT_REPO="${PREV_CLIENT%"${client_colon_suffix}"}"
+            PREV_CLIENT_TAG="${client_tag}"
+            PATCH_CLIENT="1"
           fi
 
-          docker compose -f compose.yaml -f compose.prod.yaml pull dhis2-cert-api dhis2-cert-client
-          docker compose -f compose.yaml -f compose.prod.yaml up -d --no-deps --force-recreate dhis2-cert-api dhis2-cert-client
+          tmp="$(mktemp)"
+          awk \
+            -v AREPO="${PREV_API_REPO}" \
+            -v ATAG="${PREV_API_TAG}" \
+            -v CREPO="${PREV_CLIENT_REPO}" \
+            -v CTAG="${PREV_CLIENT_TAG}" \
+            -v PATCH="${PATCH_CLIENT}" \
+            '
+              /^DHIS2_CERT_API_IMAGE=/ { print "DHIS2_CERT_API_IMAGE=" AREPO; next }
+              /^TAG=/ { print "TAG=" ATAG; next }
+              PATCH == "1" && /^DHIS2_CERT_CLIENT_IMAGE=/ {
+                print "DHIS2_CERT_CLIENT_IMAGE=" CREPO
+                next
+              }
+              PATCH == "1" && /^CLIENT_TAG=/ {
+                print "CLIENT_TAG=" CTAG
+                next
+              }
+              { print }
+            ' .env > "${tmp}"
+          mv -f "${tmp}" .env
 
-      - name: Verify rollback
+          dcc=(
+            docker compose
+            -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml
+            --env-file .env
+          )
+
+          "${dcc[@]}" pull dhis2-cert-api dhis2-cert-client
+          "${dcc[@]}" up -d --no-deps --force-recreate \
+            --remove-orphans dhis2-cert-api dhis2-cert-client
+
+      - name: Verify rollback reached liveness
         working-directory: ${{ env.APP_DIR }}
-        run: timeout 60 bash -c 'until docker compose -f compose.yaml -f compose.prod.yaml exec -T dhis2-cert-api wget --spider -q http://localhost:${{ vars.PORT }}/health/live; do sleep 3; done'
-
-      - name: Rollback summary
-        if: always()
+        env:
+          PORT_CHECK: ${{ vars.PORT }}
         run: |
-          echo "========================================"
-          echo "ROLLBACK EXECUTED"
-          echo "========================================"
-          echo "Environment: ${{ inputs.environment }}"
-          echo "Failed tags: API=${{ inputs.api-tag }} Client=${{ inputs.client-tag }}"
-          echo "Please investigate before retrying."
+          set -euo pipefail
+          waited=0
+          until docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml \
+            exec -T dhis2-cert-api wget --spider -q "http://localhost:${PORT_CHECK}/health/live"; do
+            if [ "${waited}" -ge 90 ]; then
+              echo '::error::Rollback did not restore API liveness.'
+              exit 1
+            fi
+            sleep 3
+            waited=$((waited + 3))
+          done
+
+      - name: Rollback banner
+        if: always()
+        env:
+          API_ATTEMPT_TAG: ${{ needs.validate.outputs.api_image_tag }}
+          CLIENT_ATTEMPT_TAG: ${{ needs.validate.outputs.client_image_tag }}
+          REASON_NOTE: ${{ inputs.reason }}
+          ACTOR_NOTE: ${{ github.actor }}
+        run: |
+          {
+            printf '\n========================================\n'
+            printf ' ROLLBACK EXECUTED (%s)\n' "${ACTOR_NOTE}"
+            printf '========================================\n'
+            printf ' Candidate API tag: %s\n' "${API_ATTEMPT_TAG}"
+            printf ' Candidate client tag: %s\n' "${CLIENT_ATTEMPT_TAG}"
+            printf ' Dispatch reason: %s\n' "${REASON_NOTE:-n/a}"
+            printf '========================================\n\n'
+          } >&2
+
+  notify:
+    name: Deployment digest
+    needs: [validate, deploy, smoke-test]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Best-effort summary
+        env:
+          ENV_NOTE: ${{ inputs.environment }}
+          API_TAG_NOTE: ${{ needs.validate.outputs.api_image_tag }}
+          CLIENT_TAG_NOTE: ${{ needs.validate.outputs.client_image_tag }}
+          VM_REASON: ${{ inputs.reason }}
+          VM_ACTOR: ${{ github.actor }}
+          DEPLOY_JOB_RESULT: ${{ needs.deploy.result }}
+          SMOKE_JOB_RESULT: ${{ needs.smoke-test.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Deploy ${ENV_NOTE}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Actor | ${VM_ACTOR} |"
+            echo "| Deploy result | ${DEPLOY_JOB_RESULT} |"
+            echo "| Smoke result | ${SMOKE_JOB_RESULT} |"
+            echo "| Resolved API tag | \`${API_TAG_NOTE}\` |"
+            echo "| Resolved client tag | \`${CLIENT_TAG_NOTE}\` |"
+            echo "| Reason | ${VM_REASON:-auto} |"
+          } >> "${GITHUB_STEP_SUMMARY}"

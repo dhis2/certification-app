@@ -4,7 +4,7 @@
 
 The application supports **DHIS2 server and metadata certification**: assessment templates, submissions, scoring, **registry-backed certificates** (certificate number + verification code + PostgreSQL), and **public verification** without authentication.
 
-**Stack:** React client (Vite, DHIS2 UI), NestJS API, PostgreSQL, Redis (sessions, throttling, caching), optional **OpenBao/Vault** for transit encryption used by features such as OTP.
+**Stack:** React client (Vite, DHIS2 UI), NestJS API, PostgreSQL, Redis (sessions, throttling, caching). A dormant `VaultModule` remains for historical wiring; Compose no longer ships an OpenBao container (see staging deployment Phase 8 for code removal).
 
 ---
 
@@ -31,15 +31,12 @@ graph TB
         Redis[(Redis)]
     end
 
-    Vault["OpenBao Vault<br/>(optional transit)"]
-
     User --> Traefik
     Public --> Traefik
     Traefik --> Client
     Traefik --> API
     API --> DB
     API --> Redis
-    API --> Vault
 ```
 
 ---
@@ -59,14 +56,12 @@ graph LR
         DB["dhis2-cert-db<br/>postgres:18.1<br/>:5432"]
         RedisC["dhis2-cert-redis<br/>redis:7-alpine<br/>:6379"]
         Migrations["dhis2-cert-migrations<br/>(one-shot)"]
-        VaultC["dhis2-cert-vault<br/>openbao:2.1.1<br/>:8200"]
     end
 
     Traefik -->|"/api/v1, /health"| APIC
     Traefik -->|"/ (catch-all)"| ClientC
     APIC --> DB
     APIC --> RedisC
-    APIC --> VaultC
     Migrations --> DB
 
     style traefik-public fill:#e8f4f8,stroke:#2196F3

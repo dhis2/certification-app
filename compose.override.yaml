@@ -112,31 +112,6 @@ services:
           cpus: "0.25"
           memory: 256M
 
-  dhis2-cert-vault:
-    command: server -dev -dev-root-token-id=dev-root-token
-    environment:
-      BAO_DEV_ROOT_TOKEN_ID: dev-root-token
-      BAO_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
-    ports:
-      - "127.0.0.1:8200:8200"
-    restart: "no"
-
-  dhis2-cert-vault-init:
-    image: openbao/openbao:2.1.1
-    container_name: dhis2-cert-vault-init
-    profiles: ["vault"]
-    depends_on:
-      dhis2-cert-vault:
-        condition: service_healthy
-    volumes:
-      - ./docker/init-vault.sh:/init-vault.sh:ro
-    environment:
-      VAULT_ADDR: http://dhis2-cert-vault:8200
-      VAULT_TOKEN: dev-root-token
-    entrypoint: ["sh", "/init-vault.sh"]
-    networks: *common-networks
-    restart: "no"
-
 networks:
   traefik-public:
     driver: bridge

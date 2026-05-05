@@ -2,12 +2,14 @@ import { Logger } from '@nestjs/common';
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
+import { hydrateSecretsFromFiles } from '../../config/hydrate-secrets-from-files';
 import { hash, genSalt } from 'bcrypt';
 import { Role } from 'src/modules/iam/authorization/entities/role.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 
 config({ path: '.env.local' });
 config({ path: '.env' });
+hydrateSecretsFromFiles();
 
 const logger = new Logger('Seed');
 
