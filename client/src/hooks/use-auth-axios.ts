@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, create as createAxios } from 'axios'
 import type { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 import { makeUseAxios } from 'axios-hooks'
 import type { Options, UseAxiosResult } from 'axios-hooks'
@@ -53,7 +53,7 @@ const processQueue = (error: unknown, token: string | null = null): void => {
     failedQueue = []
 }
 
-export const axiosInstance = axios.create({
+export const axiosInstance = createAxios({
     baseURL,
     headers: {
         'Content-Type': 'application/json',
