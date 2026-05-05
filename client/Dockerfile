@@ -12,7 +12,8 @@ RUN yarn build
 
 FROM nginx:1.28.0-alpine3.21 AS runtime
 
-RUN addgroup -g 1001 -S app && adduser -S app -u 1001 && \
+RUN apk add --no-cache wget && \
+    addgroup -g 1001 -S app && adduser -S app -u 1001 && \
     sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf && \
     sed -i 's|/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf
 
