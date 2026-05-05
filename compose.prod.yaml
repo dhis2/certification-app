@@ -7,6 +7,8 @@ secrets:
     file: ${SECRETS_DIR:-./secrets}/redis_password
   jwt_secret:
     file: ${SECRETS_DIR:-./secrets}/jwt_secret
+  otp_encryption_key:
+    file: ${SECRETS_DIR:-./secrets}/otp_encryption_key
   audit_log_hmac_key:
     file: ${SECRETS_DIR:-./secrets}/audit_log_hmac_key
   seed_admin_password:
@@ -73,6 +75,7 @@ services:
       - db_password
       - redis_password
       - jwt_secret
+      - otp_encryption_key
       - audit_log_hmac_key
       - mail_host
       - mail_user
@@ -81,6 +84,7 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
+      OTP_ENCRYPTION_KEY_FILE: /run/secrets/otp_encryption_key
       AUDIT_LOG_HMAC_KEY_FILE: /run/secrets/audit_log_hmac_key
       MAIL_HOST_FILE: /run/secrets/mail_host
       MAIL_USER_FILE: /run/secrets/mail_user

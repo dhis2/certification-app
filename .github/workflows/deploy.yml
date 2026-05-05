@@ -198,6 +198,7 @@ jobs:
           SECRET_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           SECRET_REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           SECRET_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SECRET_OTP_ENCRYPTION_KEY: ${{ secrets.OTP_ENCRYPTION_KEY }}
           SECRET_AUDIT_LOG_HMAC_KEY: ${{ secrets.AUDIT_LOG_HMAC_KEY }}
           SECRET_SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
           SECRET_MAIL_HOST: ${{ secrets.MAIL_HOST }}
@@ -218,6 +219,7 @@ jobs:
           write_444 "${secrets_dir}/db_password" "${SECRET_DB_PASSWORD}"
           write_444 "${secrets_dir}/redis_password" "${SECRET_REDIS_PASSWORD}"
           write_444 "${secrets_dir}/jwt_secret" "${SECRET_JWT_SECRET}"
+          write_444 "${secrets_dir}/otp_encryption_key" "${SECRET_OTP_ENCRYPTION_KEY}"
           write_444 "${secrets_dir}/audit_log_hmac_key" "${SECRET_AUDIT_LOG_HMAC_KEY}"
           write_444 "${secrets_dir}/mail_host" "${SECRET_MAIL_HOST}"
           write_444 "${secrets_dir}/mail_user" "${SECRET_MAIL_USER}"
@@ -284,6 +286,7 @@ jobs:
             printf '%s\n' REDIS_HOST=dhis2-cert-redis
             printf '%s\n' REDIS_PASSWORD_FILE=/run/secrets/redis_password
             printf '%s\n' JWT_SECRET_FILE=/run/secrets/jwt_secret
+            printf '%s\n' OTP_ENCRYPTION_KEY_FILE=/run/secrets/otp_encryption_key
             printf 'JWT_ACCESS_TOKEN_TTL=%s\n' "${JWT_ACCESS_TOKEN_TTL}"
             printf 'JWT_REFRESH_TOKEN_TTL=%s\n' "${JWT_REFRESH_TOKEN_TTL}"
             printf 'JWT_TOKEN_ISSUER=%s\n' "${JWT_TOKEN_ISSUER}"
