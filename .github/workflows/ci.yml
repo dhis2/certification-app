@@ -6,7 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-permissions: {}
+permissions:
+  contents: read
+  packages: write
+  id-token: write
 
 env:
   REGISTRY: ghcr.io
@@ -295,6 +298,9 @@ jobs:
   deploy-staging:
     name: Deploy Staging
     needs: [build-api, build-client, scan-images]
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging

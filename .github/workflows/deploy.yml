@@ -52,7 +52,9 @@ on:
         type: string
         default: ""
 
-permissions: {}
+permissions:
+  contents: read
+  packages: read
 
 env:
   REGISTRY: ghcr.io
