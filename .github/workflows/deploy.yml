@@ -320,11 +320,16 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
+          dcc() {
+            docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml --env-file .env "$@"
+          }
 
           snapshot_ref () {
-            local container="$1" outfile="$2"
-            if docker inspect "${container}" >/dev/null 2>&1; then
-              docker inspect "${container}" | python3 -c "import sys, json; sys.stdout.write(json.load(sys.stdin)[0]['Config']['Image'].strip() + chr(10))" > "${outfile}"
+            local service="$1" outfile="$2"
+            local cid
+            cid="$(dcc ps -q "${service}" 2>/dev/null | head -n1 || true)"
+            if [ -n "${cid}" ] && docker inspect "${cid}" >/dev/null 2>&1; then
+              docker inspect "${cid}" | python3 -c "import sys, json; sys.stdout.write(json.load(sys.stdin)[0]['Config']['Image'].strip() + chr(10))" > "${outfile}"
             else
               printf 'none\n' > "${outfile}"
             fi
