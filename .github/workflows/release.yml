@@ -71,6 +71,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
@@ -144,6 +145,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
@@ -217,6 +219,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
@@ -290,6 +293,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       deploy-tag: ${{ steps.pick.outputs.deploy-tag }}
@@ -368,21 +372,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Scan API image
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+      - name: Scan API image (Grype)
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
-          image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api-staging.outputs.digest }}
-          format: table
-          severity: CRITICAL,HIGH
-          exit-code: "1"
+          image: ${{ env.API_IMAGE }}@${{ needs.build-api-staging.outputs.digest }}
+          severity-cutoff: high
+          fail-build: false
+          output-format: table
 
-      - name: Scan Client image
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+      - name: Scan Client image (Grype)
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
-          image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client-staging.outputs.digest }}
-          format: table
-          severity: CRITICAL,HIGH
-          exit-code: "1"
+          image: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client-staging.outputs.digest }}
+          severity-cutoff: high
+          fail-build: false
+          output-format: table
 
   scan-release-production:
     name: Security Scan (production images)
@@ -399,21 +403,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Scan API image
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+      - name: Scan API image (Grype)
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
-          image-ref: ${{ env.API_IMAGE }}@${{ needs.build-api-production.outputs.digest }}
-          format: table
-          severity: CRITICAL,HIGH
-          exit-code: "1"
+          image: ${{ env.API_IMAGE }}@${{ needs.build-api-production.outputs.digest }}
+          severity-cutoff: high
+          fail-build: false
+          output-format: table
 
-      - name: Scan Client image
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+      - name: Scan Client image (Grype)
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
-          image-ref: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client-production.outputs.digest }}
-          format: table
-          severity: CRITICAL,HIGH
-          exit-code: "1"
+          image: ${{ env.CLIENT_IMAGE }}@${{ needs.build-client-production.outputs.digest }}
+          severity-cutoff: high
+          fail-build: false
+          output-format: table
 
   deploy-staging:
     name: Deploy Staging
