@@ -404,9 +404,13 @@ jobs:
           PORT_CHECK: ${{ vars.PORT }}
         run: |
           set -euo pipefail
+          if [ -z "${PORT_CHECK}" ]; then
+            echo '::error::GitHub Environment variable PORT is not set.'
+            exit 1
+          fi
           waited=0
           until docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml \
-            exec -T dhis2-cert-api wget --spider -q "http://localhost:${PORT_CHECK}/health/live"; do
+            exec -T dhis2-cert-api wget --spider -q "http://127.0.0.1:${PORT_CHECK}/health/live"; do
             if [ "${waited}" -ge 120 ]; then
               echo '::error::API liveness timed out.'
               exit 1
@@ -425,27 +429,62 @@ jobs:
       - deploy
       - "${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}"
     needs: [deploy]
+    environment:
+      name: ${{ inputs.environment }}
     permissions:
       contents: read
     env:
-      BASE_URL: https://${{ vars.DOMAIN }}
+      APP_DIR: /home/deploy/dhis2-cert-${{ inputs.environment }}
     steps:
+      - name: Resolve smoke BASE_URL
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          DOMAIN_VAR: ${{ vars.DOMAIN }}
+        run: |
+          set -euo pipefail
+          domain="${DOMAIN_VAR}"
+          if [ -z "${domain}" ] && [ -f .env ]; then
+            domain="$(awk -F= '$1=="DOMAIN"{print $2}' .env | tr -d '\r')"
+          fi
+          if [ -z "${domain}" ]; then
+            echo "::error::DOMAIN not set — add variable DOMAIN to GitHub Environment \"${{ inputs.environment }}\" (or DOMAIN= in ${{ env.APP_DIR }}/.env)."
+            exit 1
+          fi
+          printf 'SMOKE_DOMAIN=%s\n' "${domain}" >> "${GITHUB_ENV}"
+          printf 'BASE_URL=https://%s\n' "${domain}" >> "${GITHUB_ENV}"
+
+      # Same host as Traefik: curling the public DNS name often hits hairpin-NAT failures.
+      # --resolve keeps TLS/SNI correct while connecting to loopback :443.
       - name: Liveness probe
-        run: curl -sf "${{ env.BASE_URL }}/health/live"
+        run: |
+          curl -sf --retry 5 --retry-delay 2 --retry-connrefused \
+            --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" \
+            "${BASE_URL}/health/live"
 
       - name: Readiness probe
-        run: curl -sf "${{ env.BASE_URL }}/health/ready"
+        run: |
+          curl -sf --retry 5 --retry-delay 2 --retry-connrefused \
+            --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" \
+            "${BASE_URL}/health/ready"
 
-      - name: Public API sanity
-        run: curl -sf "${{ env.BASE_URL }}/api/v1/templates"
+      - name: Aggregated health (public, via Traefik)
+        run: |
+          curl -sf --retry 5 --retry-delay 2 --retry-connrefused \
+            --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" \
+            "${BASE_URL}/health"
 
       - name: Client SPA
-        run: curl -sf "${{ env.BASE_URL }}/"
+        run: |
+          curl -sf --retry 5 --retry-delay 2 --retry-connrefused \
+            --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" \
+            "${BASE_URL}/"
 
       - name: Liveness response time ceiling (≤5s)
         run: |
           set -euo pipefail
-          RESPONSE_TIME="$(curl -s -o /dev/null -w '%{time_total}' "${{ env.BASE_URL }}/health/live")"
+          RESPONSE_TIME="$(curl -s -o /dev/null -w '%{time_total}' \
+            --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" \
+            "${BASE_URL}/health/live")"
           awk -v rt="${RESPONSE_TIME}" 'BEGIN { exit (rt <= 5.0) ? 0 : 1 }'
 
   rollback:
@@ -459,6 +498,8 @@ jobs:
       - "${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}"
     needs: [validate, deploy, smoke-test]
     if: ${{ always() && needs.deploy.result == 'success' && needs.smoke-test.result == 'failure' }}
+    environment:
+      name: ${{ inputs.environment }}
     permissions:
       contents: read
       packages: read
@@ -538,9 +579,13 @@ jobs:
           PORT_CHECK: ${{ vars.PORT }}
         run: |
           set -euo pipefail
+          if [ -z "${PORT_CHECK}" ]; then
+            echo '::error::GitHub Environment variable PORT is not set.'
+            exit 1
+          fi
           waited=0
           until docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml \
-            exec -T dhis2-cert-api wget --spider -q "http://localhost:${PORT_CHECK}/health/live"; do
+            exec -T dhis2-cert-api wget --spider -q "http://127.0.0.1:${PORT_CHECK}/health/live"; do
             if [ "${waited}" -ge 90 ]; then
               echo '::error::Rollback did not restore API liveness.'
               exit 1
