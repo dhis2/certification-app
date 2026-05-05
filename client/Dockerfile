@@ -8,6 +8,9 @@ RUN yarn install --frozen-lockfile && yarn cache clean
 
 COPY . .
 
+ARG VITE_API_URL=/api/v1
+ENV VITE_API_URL=${VITE_API_URL}
+
 RUN yarn build
 
 FROM nginx:1.28.0-alpine3.21 AS runtime
