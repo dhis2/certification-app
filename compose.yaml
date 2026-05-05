@@ -12,7 +12,6 @@ name: dhis2-cert-app
 services:
   dhis2-cert-db:
     image: postgres:18.1
-    container_name: dhis2-cert-db
     volumes:
       - postgres-data:/var/lib/postgresql/data/pgdata
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -44,7 +43,6 @@ services:
 
   dhis2-cert-redis:
     image: redis:7-alpine
-    container_name: dhis2-cert-redis
     volumes:
       - redis-data:/data
     env_file:
@@ -80,7 +78,6 @@ services:
 
   dhis2-cert-migrations:
     image: ${DHIS2_CERT_API_IMAGE}:${TAG?Variable not set}
-    container_name: dhis2-cert-migrations
     depends_on:
       dhis2-cert-db:
         condition: service_healthy
@@ -112,7 +109,6 @@ services:
 
   dhis2-cert-api:
     image: ${DHIS2_CERT_API_IMAGE?Variable not set}:${TAG?Variable not set}
-    container_name: dhis2-cert-api
     depends_on:
       dhis2-cert-db:
         condition: service_healthy
@@ -179,7 +175,6 @@ services:
 
   dhis2-cert-client:
     image: ${DHIS2_CERT_CLIENT_IMAGE?Variable not set}:${CLIENT_TAG?Variable not set}
-    container_name: dhis2-cert-client
     depends_on:
       dhis2-cert-api:
         condition: service_healthy
