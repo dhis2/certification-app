@@ -160,7 +160,7 @@ jobs:
       - X64
       - docker
       - deploy
-      - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
+      - "${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}"
     outputs:
       api_image_tag: ${{ needs.validate.outputs.api_image_tag }}
       client_image_tag: ${{ needs.validate.outputs.client_image_tag }}
@@ -389,7 +389,7 @@ jobs:
       - X64
       - docker
       - deploy
-      - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
+      - "${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}"
     needs: [deploy]
     permissions:
       contents: read
@@ -422,7 +422,7 @@ jobs:
       - X64
       - docker
       - deploy
-      - ${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}
+      - "${{ inputs.environment == 'production' && 'dhis2-cert-prod-server' || 'dhis2-cert-staging-server' }}"
     needs: [validate, deploy, smoke-test]
     if: ${{ always() && needs.deploy.result == 'success' && needs.smoke-test.result == 'failure' }}
     permissions:
