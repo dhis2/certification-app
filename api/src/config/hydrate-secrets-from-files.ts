@@ -39,3 +39,7 @@ export function hydrateSecretsFromFiles(): void {
     process.env.DB_SSL = process.env.DATABASE_SSL === 'true' ? 'true' : 'false';
   }
 }
+
+// Run on import so secrets are available before AppModule loads ConfigModule
+// (validate runs at module decorator eval, which is before bootstrap()).
+hydrateSecretsFromFiles();
