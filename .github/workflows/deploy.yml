@@ -207,6 +207,7 @@ jobs:
 
           write_444 () {
             local path="$1" value="$2"
+            rm -f "${path}"
             printf '%s' "${value}" > "${path}"
             chmod 0444 "${path}"
           }
