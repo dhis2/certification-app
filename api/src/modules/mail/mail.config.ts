@@ -11,14 +11,18 @@ export interface MailConfig {
   enabled: boolean;
 }
 
+function trimOrEmpty(value: string | undefined): string {
+  return value?.trim() ?? '';
+}
+
 export default registerAs(
   'mail',
   (): MailConfig => ({
-    host: process.env.MAIL_HOST ?? 'localhost',
+    host: trimOrEmpty(process.env.MAIL_HOST),
     port: parseInt(process.env.MAIL_PORT ?? '587', 10),
     secure: process.env.MAIL_SECURE === 'true',
-    user: process.env.MAIL_USER ?? '',
-    password: process.env.MAIL_PASSWORD ?? '',
+    user: trimOrEmpty(process.env.MAIL_USER),
+    password: trimOrEmpty(process.env.MAIL_PASSWORD),
     fromName: process.env.MAIL_FROM_NAME ?? 'DHIS2 Server Certification',
     fromAddress: process.env.MAIL_FROM_ADDRESS ?? 'no-reply@dhis2.org',
     enabled: process.env.MAIL_ENABLED !== 'false',
