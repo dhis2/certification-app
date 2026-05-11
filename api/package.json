@@ -41,7 +41,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
-    "entities": "^7.0.1",
+    "entities": "^8.0.0",
     "escape-html": "^1.0.3",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
