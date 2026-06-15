@@ -19,10 +19,10 @@
         "format:check": "prettier --check ."
     },
     "dependencies": {
-        "@dhis2/app-runtime": "^3.17.0",
+        "@dhis2/app-runtime": "^3.17.1",
         "@dhis2/app-service-alerts": "^3.16.0",
-        "@dhis2/data-engine": "3.17.0",
-        "@dhis2/ui": "^10.12.11",
+        "@dhis2/data-engine": "3.17.1",
+        "@dhis2/ui": "^10.16.3",
         "@dhis2/ui-constants": "^10.12.11",
         "@fontsource/roboto": "^5.2.10",
         "axios": "^1.13.6",
