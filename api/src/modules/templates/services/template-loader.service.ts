@@ -14,6 +14,7 @@ import { glob } from 'fs/promises';
 import { TemplateValidatorService } from './template-validator.service';
 import { TemplateVersioningService } from './template-versioning.service';
 import {
+  CategoryDefinition,
   TemplateDefinition,
   TemplateSyncResult,
 } from '../interfaces/template-definition.interface';
@@ -253,40 +254,43 @@ export class TemplateLoaderService implements OnModuleInit {
       description: definition.description,
       effectiveFrom: definition.effectiveFrom,
       effectiveTo: definition.effectiveTo,
-      categories: definition.categories.map((cat) => ({
-        name: cat.name,
-        description: cat.description,
-        weight: cat.weight,
-        sortOrder: cat.sortOrder,
-        criteria: cat.criteria.map((crit, critIdx) => ({
-          code: crit.code,
-          name: crit.name,
-          description: crit.description,
-          guidance: crit.guidance ?? crit.verificationMethod,
-          verificationMethod: crit.verificationMethod,
-          weight: this.calculateCriterionWeight(cat.criteria.length),
-          isMandatory: crit.isMandatory ?? false,
-          isCriticalFail:
-            crit.isCriticalFail ??
-            (crit.controlType === ControlType.TECHNICAL &&
-              (crit.isMandatory ?? false)),
-          minPassingScore:
-            crit.minPassingScore ??
-            (crit.controlType === ControlType.TECHNICAL ? 100 : 0),
-          maxScore: crit.maxScore ?? 100,
-          evidenceRequired: crit.evidenceRequired ?? false,
-          evidenceDescription: crit.evidenceDescription,
-          sortOrder: critIdx + 1,
-          controlGroup:
-            (crit.controlGroup as ControlGroup) ?? ControlGroup.DSCP1,
-          controlType: crit.controlType as ControlType,
-          cisMapping: crit.cisMapping,
-          justification: crit.justification ?? null,
-          verificationCommands: crit.verificationCommands ?? null,
-          score: crit.score ?? null,
-          notes: crit.notes ?? null,
-        })),
-      })),
+      categories: definition.categories.map((cat) => {
+        const criterionWeights = this.equalWeights(cat.criteria.length);
+        return {
+          name: cat.name,
+          description: cat.description,
+          weight: cat.weight,
+          sortOrder: cat.sortOrder,
+          criteria: cat.criteria.map((crit, critIdx) => ({
+            code: crit.code,
+            name: crit.name,
+            description: crit.description,
+            guidance: crit.guidance ?? crit.verificationMethod,
+            verificationMethod: crit.verificationMethod,
+            weight: criterionWeights[critIdx],
+            isMandatory: crit.isMandatory ?? false,
+            isCriticalFail:
+              crit.isCriticalFail ??
+              (crit.controlType === ControlType.TECHNICAL &&
+                (crit.isMandatory ?? false)),
+            minPassingScore:
+              crit.minPassingScore ??
+              (crit.controlType === ControlType.TECHNICAL ? 100 : 0),
+            maxScore: crit.maxScore ?? 100,
+            evidenceRequired: crit.evidenceRequired ?? false,
+            evidenceDescription: crit.evidenceDescription,
+            sortOrder: critIdx + 1,
+            controlGroup:
+              (crit.controlGroup as ControlGroup) ?? ControlGroup.DSCP1,
+            controlType: crit.controlType as ControlType,
+            cisMapping: crit.cisMapping,
+            justification: crit.justification ?? null,
+            verificationCommands: crit.verificationCommands ?? null,
+            score: crit.score ?? null,
+            notes: crit.notes ?? null,
+          })),
+        };
+      }),
     };
   }
 
@@ -321,9 +325,9 @@ export class TemplateLoaderService implements OnModuleInit {
     return ControlType.ORGANIZATIONAL;
   }
 
-  private calculateCriterionWeight(criteriaCount: number): number {
-    if (criteriaCount === 0) return 1;
-    return Math.round((1 / criteriaCount) * 10000) / 10000;
+  private equalWeights(count: number): number[] {
+    if (count <= 0) return [];
+    return this.weightsSummingToOne(new Array<number>(count).fill(1)) ?? [];
   }
 
   private parseYaml(content: string, source: string): TemplateDefinition {
@@ -367,12 +371,65 @@ export class TemplateLoaderService implements OnModuleInit {
         })
       : categories;
 
-    return {
+    const definition = {
       ...rest,
       name: name ?? templateName,
       description: description ?? templateDescription,
       categories: normalizedCategories,
     } as TemplateDefinition;
+
+    this.rescaleCategoryWeights(definition.categories);
+    return definition;
+  }
+
+  private rescaleCategoryWeights(categories: CategoryDefinition[]): void {
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return;
+    }
+
+    const weights: number[] = [];
+    for (const cat of categories) {
+      if (!cat || typeof cat !== 'object' || Array.isArray(cat)) {
+        return;
+      }
+      const weight = Number(cat.weight);
+      if (!Number.isFinite(weight)) {
+        return;
+      }
+      weights.push(weight);
+    }
+
+    const rescaled = this.weightsSummingToOne(weights);
+    if (!rescaled) {
+      return;
+    }
+    categories.forEach((cat, i) => {
+      cat.weight = rescaled[i];
+    });
+  }
+
+  private weightsSummingToOne(rawWeights: number[]): number[] | null {
+    const total = rawWeights.reduce((sum, w) => sum + w, 0);
+    if (total <= 0) {
+      return null;
+    }
+
+    const rounded = rawWeights.map(
+      (w) => Math.round((w / total) * 10000) / 10000,
+    );
+    const residual =
+      Math.round((1 - rounded.reduce((sum, w) => sum + w, 0)) * 10000) / 10000;
+    if (residual !== 0) {
+      let maxIdx = 0;
+      for (let i = 1; i < rounded.length; i++) {
+        if (rounded[i] > rounded[maxIdx]) {
+          maxIdx = i;
+        }
+      }
+      rounded[maxIdx] =
+        Math.round((rounded[maxIdx] + residual) * 10000) / 10000;
+    }
+    return rounded;
   }
 
   private sanitizeFilename(filename: string): string {

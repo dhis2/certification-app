@@ -1,3 +1,5 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TemplateLoaderService } from '../services/template-loader.service';
@@ -196,6 +198,149 @@ categories:
       expect(result.categories[0].criteria[0].notes).toBe(
         'Assessor notes here',
       );
+    });
+
+    it('rescales category weights that do not sum to 1 and keeps proportions', () => {
+      const yamlContent = `
+name: Test Template
+version: 1
+categories:
+  - name: PostgreSQL Database
+    weight: 0.15
+    criteria:
+      - code: DB-01
+        name: Test
+        controlType: technical
+  - name: Reverse Proxy
+    weight: 0.10
+    criteria:
+      - code: RP-01
+        name: Test
+        controlType: technical
+  - name: Operating System Security
+    weight: 0.20
+    criteria:
+      - code: OS-01
+        name: Test
+        controlType: technical
+  - name: DHIS2 Application
+    weight: 0.15
+    criteria:
+      - code: APP-01
+        name: Test
+        controlType: technical
+  - name: DHIS2 Tomcat Application Server
+    weight: 0.10
+    criteria:
+      - code: TOM-01
+        name: Test
+        controlType: technical
+  - name: Network Security
+    weight: 0.10
+    criteria:
+      - code: NET-01
+        name: Test
+        controlType: technical
+  - name: Governance & Processes
+    weight: 0.10
+    criteria:
+      - code: GOV-01
+        name: Test
+        controlType: technical
+`;
+
+      const result = service.loadFromContent(yamlContent);
+      const weights = result.categories.map((cat) => cat.weight);
+      const sum = weights.reduce((total, w) => total + w, 0);
+
+      expect(Math.abs(sum - 1)).toBeLessThanOrEqual(0.0001);
+      expect(weights).toEqual([
+        0.1667, 0.1111, 0.2222, 0.1667, 0.1111, 0.1111, 0.1111,
+      ]);
+    });
+
+    it('puts rounding residual on the largest category so weights sum to 1', () => {
+      const yamlContent = `
+name: Test Template
+version: 1
+categories:
+  - name: A
+    weight: 1
+    criteria:
+      - code: A-01
+        name: Test
+        controlType: technical
+  - name: B
+    weight: 1
+    criteria:
+      - code: B-01
+        name: Test
+        controlType: technical
+  - name: C
+    weight: 1
+    criteria:
+      - code: C-01
+        name: Test
+        controlType: technical
+`;
+
+      const result = service.loadFromContent(yamlContent);
+      const weights = result.categories.map((cat) => cat.weight);
+      const sum = weights.reduce((total, w) => total + w, 0);
+
+      expect(sum).toBe(1);
+      expect(weights).toEqual([0.3334, 0.3333, 0.3333]);
+    });
+
+    it('rescales the shipped DSCP catalog so validation passes', async () => {
+      const content = await fs.readFile(
+        path.join(process.cwd(), 'templates/dhis2-certification-v1.yaml'),
+        'utf-8',
+      );
+
+      const definition = service.loadFromContent(content);
+      const weights = definition.categories.map((cat) => cat.weight);
+      const sum = weights.reduce((total, w) => total + w, 0);
+      const criteriaCount = definition.categories.reduce(
+        (total, cat) => total + cat.criteria.length,
+        0,
+      );
+
+      expect(definition.categories).toHaveLength(7);
+      expect(criteriaCount).toBe(43);
+      expect(Math.abs(sum - 1)).toBeLessThanOrEqual(0.0001);
+
+      const validator = new TemplateValidatorService();
+      const result = await validator.validate(definition);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('emits publishable weights for the shipped DSCP catalog', async () => {
+      const content = await fs.readFile(
+        path.join(process.cwd(), 'templates/dhis2-certification-v1.yaml'),
+        'utf-8',
+      );
+
+      await service.syncFromContent(content, 'user-123');
+
+      const dto = mockTemplatesService.create.mock.calls[0][0] as {
+        categories: {
+          weight: number;
+          criteria: { weight: number }[];
+        }[];
+      };
+
+      const categorySum = dto.categories.reduce((s, c) => s + c.weight, 0);
+      expect(Math.abs(categorySum - 1)).toBeLessThanOrEqual(0.0001);
+
+      for (const category of dto.categories) {
+        const criteriaSum = category.criteria.reduce(
+          (s, crit) => s + crit.weight,
+          0,
+        );
+        expect(Math.abs(criteriaSum - 1)).toBeLessThanOrEqual(0.0001);
+      }
     });
 
     it('should reject content exceeding size limit', () => {

@@ -1,5 +1,5 @@
-name: DHIS2 Server Certification Program (DSCP)
-description: >
+templateName: DHIS2 Server Certification Program (DSCP)
+templateDescription: >
   Assessment Checklist for assessing DHIS2 server implementations against
   security, performance and deployment best practices. This checklist can be used
   by DHIS2 implementers and hosting providers to validate their DHIS2 server setups
@@ -9,7 +9,6 @@ categories:
   - name: PostgreSQL Database
     description: Database security, backup, and configuration controls for PostgreSQL
     weight: 0.15
-    sortOrder: 1
     criteria:
       - code: DB-01
         name: Regular Automated Database Backup
@@ -229,7 +228,6 @@ categories:
   - name: Reverse Proxy
     description: Reverse Proxy configuration
     weight: 0.1
-    sortOrder: 2
     criteria:
       - code: DP-01
         name: Reverse Proxy Deployment
@@ -372,8 +370,7 @@ categories:
           Assessor notes here
   - name: Operating System Security
     description: Linux server hardening, SSH configuration, patching, and monitoring
-    weight: 0.3
-    sortOrder: 3
+    weight: 0.2
     criteria:
       - code: OS-01
         name: Disable Direct Root SSH Access
@@ -670,7 +667,6 @@ categories:
     description: DHIS2-specific application security controls including admin access
       and MFA
     weight: 0.15
-    sortOrder: 4
     criteria:
       - code: AP-01
         name: Default Admin Account Security
@@ -738,7 +734,6 @@ categories:
   - name: DHIS2 Tomcat Application Server
     description: DHIS2 Tomcat/application server security configuration
     weight: 0.1
-    sortOrder: 5
     criteria:
       - code: TC-01
         name: Tomcat Service Account
@@ -816,7 +811,6 @@ categories:
   - name: Network Security
     description: Network architecture and firewall
     weight: 0.1
-    sortOrder: 6
     criteria:
       - code: FW-01
         name: Layered Firewall Architecture
@@ -844,7 +838,7 @@ categories:
   - name: Governance & Processes
     description: Organizational security policies, procedures, and governance
     weight: 0.1
-    sortOrder: 7
+    sortOrder: 8
     criteria:
       - code: PS-01
         name: Incident Response Plan
