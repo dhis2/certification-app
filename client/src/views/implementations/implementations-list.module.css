@@ -17,15 +17,27 @@
 .toolbar {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     gap: var(--spacers-dp16);
     margin-bottom: var(--spacers-dp24);
+    flex-wrap: wrap;
+}
+
+.filters {
+    display: flex;
+    gap: var(--spacers-dp16);
+    align-items: flex-end;
+    flex: 1;
     flex-wrap: wrap;
 }
 
 .searchWrapper {
     flex: 1;
     max-width: 400px;
+}
+
+.statusFilter {
+    min-width: 180px;
 }
 
 .emptyState {

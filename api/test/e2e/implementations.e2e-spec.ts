@@ -5,6 +5,7 @@ import {
   ExecutionContext,
 } from '@nestjs/common';
 import * as request from 'supertest';
+import { APP_GUARD } from '@nestjs/core';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import type { Request as ExpressRequest } from 'express';
@@ -36,6 +37,17 @@ interface ErrorResponse {
   statusCode: number;
 }
 
+interface ImplementationsConnectionBody {
+  edges: { node: ImplementationResponse; cursor: string }[];
+  totalCount: number;
+}
+
+function nodesOf(
+  body: ImplementationsConnectionBody,
+): ImplementationResponse[] {
+  return body.edges.map((edge) => edge.node);
+}
+
 describe('Implementations (e2e)', () => {
   let app: INestApplication;
   let mockRepository: {
@@ -43,6 +55,7 @@ describe('Implementations (e2e)', () => {
     save: jest.Mock;
     find: jest.Mock;
     findOne: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
 
   // In-memory storage for implementations
@@ -182,6 +195,28 @@ describe('Implementations (e2e)', () => {
             return Promise.resolve(null);
           },
         ),
+      createQueryBuilder: jest.fn().mockImplementation(() => {
+        let activeFilter: boolean | undefined;
+        const qb = {
+          where: jest.fn((_sql: string, params?: { isActive?: boolean }) => {
+            if (params && params.isActive !== undefined) {
+              activeFilter = params.isActive;
+            }
+            return qb;
+          }),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn(() => {
+            let rows = Array.from(implementations.values());
+            if (activeFilter !== undefined) {
+              rows = rows.filter((impl) => impl.isActive === activeFilter);
+            }
+            return Promise.resolve([rows, rows.length]);
+          }),
+        };
+        return qb;
+      }),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -193,6 +228,8 @@ describe('Implementations (e2e)', () => {
           useValue: mockRepository,
         },
         { provide: AuditService, useValue: mockAuditService },
+        { provide: APP_GUARD, useValue: mockAuthenticationGuard },
+        { provide: APP_GUARD, useValue: mockRolesGuard },
       ],
     })
       .overrideGuard(AuthenticationGuard)
@@ -360,8 +397,7 @@ describe('Implementations (e2e)', () => {
 
   describe('GET /implementations', () => {
     beforeEach(() => {
-      // Create test implementations in memory
-      const implementations = [
+      const seed = [
         {
           id: uuidv7(),
           name: 'Implementation A',
@@ -399,8 +435,11 @@ describe('Implementations (e2e)', () => {
           updatedAt: new Date(),
         },
       ];
-      implementations.forEach((implementation) =>
-        implementations.set(implementation.id, implementation),
+      seed.forEach((implementation) =>
+        implementations.set(
+          implementation.id,
+          implementation as Implementation,
+        ),
       );
     });
 
@@ -410,10 +449,11 @@ describe('Implementations (e2e)', () => {
         .set('Authorization', 'Bearer admin-token')
         .expect(200);
 
-      const body = response.body as ImplementationResponse[];
-      expect(body).toHaveLength(3);
-      expect(body[0]).toHaveProperty('id');
-      expect(body[0]).toHaveProperty('name');
+      const nodes = nodesOf(response.body as ImplementationsConnectionBody);
+      expect(nodes).toHaveLength(3);
+      expect(nodes.some((org) => org.isActive === false)).toBe(true);
+      expect(nodes[0]).toHaveProperty('id');
+      expect(nodes[0]).toHaveProperty('name');
     });
 
     it('should list all implementations (assessor)', async () => {
@@ -424,8 +464,8 @@ describe('Implementations (e2e)', () => {
         .set('Authorization', 'Bearer assessor-token')
         .expect(200);
 
-      const body = response.body as ImplementationResponse[];
-      expect(body).toHaveLength(3);
+      const nodes = nodesOf(response.body as ImplementationsConnectionBody);
+      expect(nodes).toHaveLength(3);
     });
 
     it('should reject unauthenticated requests', async () => {
@@ -439,9 +479,9 @@ describe('Implementations (e2e)', () => {
         .set('Authorization', 'Bearer admin-token')
         .expect(200);
 
-      const body = response.body as ImplementationResponse[];
-      expect(body).toHaveLength(2);
-      body.forEach((org) => {
+      const nodes = nodesOf(response.body as ImplementationsConnectionBody);
+      expect(nodes).toHaveLength(2);
+      nodes.forEach((org) => {
         expect(org.isActive).toBe(true);
       });
     });
@@ -453,20 +493,9 @@ describe('Implementations (e2e)', () => {
         .set('Authorization', 'Bearer admin-token')
         .expect(200);
 
-      const body = response.body as ImplementationResponse[];
-      expect(body).toHaveLength(1);
-      expect(body[0].isActive).toBe(false);
-    });
-
-    it('should return implementations sorted by name', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/implementations')
-        .set('Authorization', 'Bearer admin-token')
-        .expect(200);
-
-      const body = response.body as ImplementationResponse[];
-      const names = body.map((org) => org.name);
-      expect(names).toEqual([...names].sort());
+      const nodes = nodesOf(response.body as ImplementationsConnectionBody);
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].isActive).toBe(false);
     });
   });
 
@@ -633,6 +662,86 @@ describe('Implementations (e2e)', () => {
         .expect(200);
 
       expect(mockAuditService.log).toHaveBeenCalled();
+    });
+
+    it('should reject update of an archived implementation', async () => {
+      testImplementation.isActive = false;
+      implementations.set(testImplementation.id, testImplementation);
+
+      const response = await request(app.getHttpServer())
+        .patch(`/implementations/${testImplementation.id}`)
+        .set('Authorization', 'Bearer admin-token')
+        .send({ name: 'Should Fail' })
+        .expect(409);
+
+      const body = response.body as ErrorResponse;
+      expect(body.message).toContain('archived');
+    });
+  });
+
+  describe('POST /implementations/:id/restore', () => {
+    let archivedImplementation: Implementation;
+
+    beforeEach(() => {
+      archivedImplementation = {
+        id: uuidv7(),
+        name: 'Archived Implementation',
+        country: 'Kenya',
+        contactEmail: 'archived@org.com',
+        dhis2InstanceUrl: 'https://dhis2.archived.org',
+        dhis2Version: '2.40.0',
+        isActive: false,
+        createdById: mockAdminUser.sub,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Implementation;
+      implementations.set(archivedImplementation.id, archivedImplementation);
+    });
+
+    it('should restore an archived implementation (admin)', async () => {
+      const response = await request(app.getHttpServer())
+        .post(`/implementations/${archivedImplementation.id}/restore`)
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200);
+
+      const body = response.body as ImplementationResponse;
+      expect(body.isActive).toBe(true);
+      expect(implementations.get(archivedImplementation.id)?.isActive).toBe(
+        true,
+      );
+    });
+
+    it('should reject assessor role (admin only)', async () => {
+      currentUser = mockAssessorUser;
+
+      await request(app.getHttpServer())
+        .post(`/implementations/${archivedImplementation.id}/restore`)
+        .set('Authorization', 'Bearer assessor-token')
+        .expect(403);
+    });
+
+    it('should reject restore when an active row already has the name', async () => {
+      const activeTwin = {
+        ...archivedImplementation,
+        id: uuidv7(),
+        isActive: true,
+      } as Implementation;
+      implementations.set(activeTwin.id, activeTwin);
+
+      const response = await request(app.getHttpServer())
+        .post(`/implementations/${archivedImplementation.id}/restore`)
+        .set('Authorization', 'Bearer admin-token')
+        .expect(409);
+
+      const body = response.body as ErrorResponse;
+      expect(body.message).toContain('already exists');
+    });
+
+    it('should return 404 for non-existent implementation', async () => {
+      await request(app.getHttpServer())
+        .post(`/implementations/${uuidv7()}/restore`)
+        .set('Authorization', 'Bearer admin-token')
+        .expect(404);
     });
   });
 

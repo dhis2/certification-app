@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -90,6 +91,11 @@ export class SubmissionsService {
     if (!implementation) {
       throw new NotFoundException(
         `Implementation ${dto.implementationId} not found`,
+      );
+    }
+    if (implementation.isActive === false) {
+      throw new ConflictException(
+        'Cannot start an assessment for an archived implementation',
       );
     }
 

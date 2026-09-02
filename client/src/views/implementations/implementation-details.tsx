@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react'
 import type { FC } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Heading, ConfirmationModal, StatusBadge, CGBadge } from '../../components/index.ts'
-import { useImplementation, useImplementations, useSubmissions } from '../../hooks/index.ts'
+import { useAuth, useImplementation, useImplementations, useSubmissions } from '../../hooks/index.ts'
 import type { CreateImplementationDto } from '../../types/index.ts'
 import styles from './implementation-details.module.css'
 import { ImplementationForm } from './implementation-form.tsx'
@@ -12,14 +12,17 @@ export const ImplementationDetails: FC = () => {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
 
+    const { isAdmin } = useAuth()
     const { implementation, loading, error, refetch } = useImplementation(id)
-    const { updateImplementation, deleteImplementation } = useImplementations()
+    const { updateImplementation, restoreImplementation, deleteImplementation } = useImplementations()
     const { submissions } = useSubmissions({ implementationId: id })
 
     const [isEditing, setIsEditing] = useState(false)
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+    const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [actionError, setActionError] = useState('')
+    const isArchived = implementation?.isActive === false
 
     const handleUpdate = useCallback(
         async (data: CreateImplementationDto) => {
@@ -41,7 +44,7 @@ export const ImplementationDetails: FC = () => {
         [id, updateImplementation, refetch]
     )
 
-    const handleDelete = useCallback(async () => {
+    const handleArchive = useCallback(async () => {
         if (!id) {
             return
         }
@@ -51,11 +54,28 @@ export const ImplementationDetails: FC = () => {
             await deleteImplementation(id)
             navigate('/implementations')
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to delete implementation')
+            setActionError(err instanceof Error ? err.message : 'Failed to archive implementation')
         } finally {
             setIsSubmitting(false)
         }
     }, [id, deleteImplementation, navigate])
+
+    const handleRestore = useCallback(async () => {
+        if (!id) {
+            return
+        }
+        setIsSubmitting(true)
+        setActionError('')
+        try {
+            await restoreImplementation(id)
+            setShowRestoreConfirm(false)
+            refetch()
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Failed to restore implementation')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }, [id, restoreImplementation, refetch])
 
     if (loading) {
         return (
@@ -91,21 +111,36 @@ export const ImplementationDetails: FC = () => {
                     <Heading title={implementation.name} />
                 </div>
                 <ButtonStrip>
-                    {!isEditing && (
-                        <>
-                            <Button onClick={() => setIsEditing(true)} data-test="edit-implementation">
-                                Edit
-                            </Button>
-                            <Button destructive onClick={() => setShowDeleteConfirm(true)} data-test="delete-implementation">
-                                Delete
-                            </Button>
-                            <Button primary onClick={() => navigate(`/assessments/new?implementationId=${id}`)} data-test="new-assessment">
-                                New Assessment
-                            </Button>
-                        </>
-                    )}
+                    {!isEditing &&
+                        (isArchived ? (
+                            isAdmin && (
+                                <Button onClick={() => setShowRestoreConfirm(true)} data-test="restore-implementation">
+                                    Restore
+                                </Button>
+                            )
+                        ) : (
+                            <>
+                                <Button onClick={() => setIsEditing(true)} data-test="edit-implementation">
+                                    Edit
+                                </Button>
+                                {isAdmin && (
+                                    <Button destructive onClick={() => setShowArchiveConfirm(true)} data-test="archive-implementation">
+                                        Archive
+                                    </Button>
+                                )}
+                                <Button primary onClick={() => navigate(`/assessments/new?implementationId=${id}`)} data-test="new-assessment">
+                                    New Assessment
+                                </Button>
+                            </>
+                        ))}
                 </ButtonStrip>
             </div>
+
+            {isArchived && (
+                <div className={styles.banner}>
+                    <NoticeBox title="Archived">This implementation is not on the working list. Existing assessments stay available. New assessments cannot be started.</NoticeBox>
+                </div>
+            )}
 
             {actionError && (
                 <NoticeBox error title="Error">
@@ -165,9 +200,11 @@ export const ImplementationDetails: FC = () => {
                 <Card className={styles.assessmentsCard}>
                     <div className={styles.assessmentsHeader}>
                         <h3 className={styles.cardTitle}>Assessments</h3>
-                        <Button small primary onClick={() => navigate(`/assessments/new?implementationId=${id}`)}>
-                            New Assessment
-                        </Button>
+                        {!isArchived && (
+                            <Button small primary onClick={() => navigate(`/assessments/new?implementationId=${id}`)}>
+                                New Assessment
+                            </Button>
+                        )}
                     </div>
 
                     {submissions.length === 0 ? (
@@ -210,13 +247,23 @@ export const ImplementationDetails: FC = () => {
             </div>
 
             <ConfirmationModal
-                open={showDeleteConfirm}
-                title="Delete Implementation"
-                message={`Are you sure you want to delete "${implementation?.name}"? This will also affect any related assessments.`}
-                confirmLabel="Delete"
+                open={showArchiveConfirm}
+                title="Archive Implementation"
+                message={`Archive "${implementation.name}"? It will leave the working list. Existing assessments and certificates stay. New assessments cannot be started.`}
+                confirmLabel="Archive"
                 destructive
-                onConfirm={handleDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
+                onConfirm={handleArchive}
+                onCancel={() => setShowArchiveConfirm(false)}
+                loading={isSubmitting}
+            />
+
+            <ConfirmationModal
+                open={showRestoreConfirm}
+                title="Restore Implementation"
+                message={`Restore "${implementation.name}" to the working list?`}
+                confirmLabel="Restore"
+                onConfirm={handleRestore}
+                onCancel={() => setShowRestoreConfirm(false)}
                 loading={isSubmitting}
             />
         </div>

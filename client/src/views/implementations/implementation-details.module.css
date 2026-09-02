@@ -19,6 +19,10 @@
     flex-wrap: wrap;
 }
 
+.banner {
+    margin-bottom: var(--spacers-dp16);
+}
+
 .headerLeft {
     display: flex;
     align-items: center;

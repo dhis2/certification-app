@@ -176,37 +176,61 @@ test.describe('Implementations', () => {
         })
     })
 
-    test.describe('Delete Implementation', () => {
-        test('should show delete confirmation modal', async ({ adminPage }) => {
+    test.describe('Archive Implementation', () => {
+        test('should show archive confirmation modal', async ({ adminPage }) => {
             const implementationsPage = new ImplementationsPage(adminPage)
             await implementationsPage.goto()
             await implementationsPage.waitForTableLoad()
 
-            const rowCount = await implementationsPage.getRowCount()
-            if (rowCount > 0) {
-                const row = implementationsPage.tableRows.first()
-                await row.getByRole('button', { name: /delete/i }).click()
+            const uniqueName = `Archive Modal ${Date.now()}`
+            await implementationsPage.createImplementation({ name: uniqueName })
+            await implementationsPage.search(uniqueName)
+            await implementationsPage.waitForTableLoad()
 
-                await expect(implementationsPage.deleteModal).toBeVisible()
-                await expect(adminPage.getByRole('heading', { name: /delete implementation/i })).toBeVisible()
-            }
+            await implementationsPage.openArchiveModal(uniqueName)
+
+            await expect(implementationsPage.archiveModal).toBeVisible()
+            await expect(adminPage.getByRole('heading', { name: /archive implementation/i })).toBeVisible()
+            await expect(implementationsPage.archiveModal).not.toContainText(/cannot be undone|related assessments/i)
         })
 
-        test('should cancel delete operation', async ({ adminPage }) => {
+        test('should cancel archive without changing the working list', async ({ adminPage }) => {
             const implementationsPage = new ImplementationsPage(adminPage)
             await implementationsPage.goto()
             await implementationsPage.waitForTableLoad()
 
-            const rowCount = await implementationsPage.getRowCount()
-            if (rowCount > 0) {
-                const row = implementationsPage.tableRows.first()
-                await row.getByRole('button', { name: /delete/i }).click()
+            const uniqueName = `Archive Cancel ${Date.now()}`
+            await implementationsPage.createImplementation({ name: uniqueName })
+            await implementationsPage.search(uniqueName)
+            await implementationsPage.waitForTableLoad()
 
-                await implementationsPage.deleteModal.waitFor({ state: 'visible' })
-                await implementationsPage.cancelDeleteButton.click()
+            await implementationsPage.openArchiveModal(uniqueName)
+            await implementationsPage.cancelArchiveButton.click()
 
-                await expect(implementationsPage.deleteModal).not.toBeVisible()
-            }
+            await expect(implementationsPage.archiveModal).not.toBeVisible()
+            expect(await implementationsPage.hasImplementation(uniqueName)).toBe(true)
+        })
+
+        test('should remove an archived implementation from the default list', async ({ adminPage }) => {
+            const implementationsPage = new ImplementationsPage(adminPage)
+            await implementationsPage.goto()
+            await implementationsPage.waitForTableLoad()
+
+            const uniqueName = `Archive Flow ${Date.now()}`
+            await implementationsPage.createImplementation({ name: uniqueName })
+            await implementationsPage.search(uniqueName)
+            await implementationsPage.waitForTableLoad()
+            expect(await implementationsPage.hasImplementation(uniqueName)).toBe(true)
+
+            await implementationsPage.archiveImplementation(uniqueName)
+            await implementationsPage.search(uniqueName)
+            await implementationsPage.waitForTableLoad()
+            expect(await implementationsPage.hasImplementation(uniqueName)).toBe(false)
+
+            await implementationsPage.setStatusFilter('Archived')
+            await implementationsPage.search(uniqueName)
+            await implementationsPage.waitForTableLoad()
+            expect(await implementationsPage.hasImplementation(uniqueName)).toBe(true)
         })
     })
 

@@ -383,6 +383,18 @@ describe('ImplementationsService', () => {
       );
     });
 
+    it('should throw ConflictException if implementation is archived', async () => {
+      repository.findOne!.mockResolvedValue({
+        ...mockImplementation,
+        isActive: false,
+      });
+
+      await expect(
+        service.update(mockImplementationId, updateDto, mockUserId),
+      ).rejects.toThrow(ConflictException);
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
     it('should only update provided fields', async () => {
       const partialUpdate: UpdateImplementationDto = {
         country: 'Tanzania',
@@ -493,6 +505,75 @@ describe('ImplementationsService', () => {
       const result = await service.remove(mockImplementationId, mockUserId);
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('restore', () => {
+    it('should restore an archived implementation', async () => {
+      const archived = { ...mockImplementation, isActive: false };
+      repository
+        .findOne!.mockResolvedValueOnce(archived)
+        .mockResolvedValueOnce(null);
+      repository.save!.mockImplementation((entity) =>
+        Promise.resolve(entity as Implementation),
+      );
+
+      const result = await service.restore(mockImplementationId, mockUserId);
+
+      expect(result.isActive).toBe(true);
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockImplementationId,
+          isActive: true,
+        }),
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        {
+          eventType: AuditEventType.IMPLEMENTATION_RESTORED,
+          entityType: 'Implementation',
+          entityId: mockImplementationId,
+          entityName: mockImplementation.name,
+          action: AuditAction.UPDATE,
+          oldValues: { isActive: false },
+          newValues: { isActive: true },
+        },
+        { actorId: mockUserId },
+      );
+    });
+
+    it('should return the row unchanged if already active', async () => {
+      repository.findOne!.mockResolvedValue({ ...mockImplementation });
+
+      const result = await service.restore(mockImplementationId, mockUserId);
+
+      expect(result.isActive).toBe(true);
+      expect(repository.save).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when an active row already has the name', async () => {
+      const archived = { ...mockImplementation, isActive: false };
+      const otherActive = {
+        ...mockImplementation,
+        id: 'other-id',
+        isActive: true,
+      };
+      repository
+        .findOne!.mockResolvedValueOnce(archived)
+        .mockResolvedValueOnce(otherActive);
+
+      await expect(
+        service.restore(mockImplementationId, mockUserId),
+      ).rejects.toThrow(ConflictException);
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if implementation does not exist', async () => {
+      repository.findOne!.mockResolvedValue(null);
+
+      await expect(service.restore('non-existent', mockUserId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
