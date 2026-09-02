@@ -115,6 +115,23 @@
     font-size: 14px;
 }
 
+.commandsSection {
+    margin-top: var(--spacers-dp12);
+}
+
+.commands {
+    margin: 0;
+    padding: var(--spacers-dp8) var(--spacers-dp12);
+    background: var(--colors-grey100);
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--colors-grey800);
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
 .mappingSection {
     display: flex;
     align-items: center;

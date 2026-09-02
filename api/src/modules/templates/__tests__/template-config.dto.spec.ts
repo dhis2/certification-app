@@ -54,6 +54,15 @@ describe('TemplateConfigDto', () => {
       expect(dto.maxCisMappingLength).toBe(
         TEMPLATE_VALIDATION_LIMITS.MAX_CIS_MAPPING_LENGTH,
       );
+      expect(dto.maxJustificationLength).toBe(
+        TEMPLATE_VALIDATION_LIMITS.MAX_JUSTIFICATION_LENGTH,
+      );
+      expect(dto.maxVerificationCommandsLength).toBe(
+        TEMPLATE_VALIDATION_LIMITS.MAX_VERIFICATION_COMMANDS_LENGTH,
+      );
+      expect(dto.maxNotesLength).toBe(
+        TEMPLATE_VALIDATION_LIMITS.MAX_NOTES_LENGTH,
+      );
       expect(dto.maxFilenameLength).toBe(
         TEMPLATE_VALIDATION_LIMITS.MAX_FILENAME_LENGTH,
       );

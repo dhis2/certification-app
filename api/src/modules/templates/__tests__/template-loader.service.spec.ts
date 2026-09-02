@@ -38,6 +38,10 @@ const createMockTemplate = (overrides = {}) => ({
           controlGroup: ControlGroup.DSCP1,
           controlType: ControlType.TECHNICAL,
           cisMapping: '1.1',
+          justification: 'Continuity of reporting.',
+          verificationCommands: 'sudo crontab -l',
+          score: null,
+          notes: 'Assessor notes here',
         },
       ],
     },
@@ -123,6 +127,36 @@ categories:
       expect(result.name).toBe('Test Template');
       expect(result.version).toBe(1);
       expect(result.categories).toHaveLength(1);
+    });
+
+    it('maps templateName/templateDescription and fills missing sortOrder', () => {
+      const yamlContent = `
+templateName: DSCP Controls
+templateDescription: From the controls file
+version: 1
+categories:
+  - name: Category 1
+    weight: 1.0
+    criteria:
+      - code: TC-01
+        name: Test
+        controlType: technical
+        verificationCommands: |
+          sudo crontab -l
+        score: null
+        notes: Assessor notes here
+`;
+
+      const result = service.loadFromContent(yamlContent);
+
+      expect(result.name).toBe('DSCP Controls');
+      expect(result.description).toBe('From the controls file');
+      expect(result.categories[0].sortOrder).toBe(1);
+      expect(result.categories[0].criteria[0].verificationCommands).toContain(
+        'crontab',
+      );
+      expect(result.categories[0].criteria[0].score).toBeNull();
+      expect(result.categories[0].criteria[0].notes).toBe('Assessor notes here');
     });
 
     it('should reject content exceeding size limit', () => {
@@ -221,6 +255,8 @@ categories: []
       expect(result).toContain('controlType');
       expect(result).toContain('controlGroup');
       expect(result).toContain('isMandatory');
+      expect(result).toContain('verificationCommands');
+      expect(result).toContain('notes');
     });
   });
 

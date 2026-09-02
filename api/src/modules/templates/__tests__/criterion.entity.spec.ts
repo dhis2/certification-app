@@ -83,6 +83,23 @@ describe('Criterion Entity', () => {
     });
   });
 
+  describe('verificationCommands, score, and notes', () => {
+    it('accepts verification command text', () => {
+      criterion.verificationCommands = 'sudo crontab -l';
+      expect(criterion.verificationCommands).toContain('crontab');
+    });
+
+    it('accepts a null score', () => {
+      criterion.score = null;
+      expect(criterion.score).toBeNull();
+    });
+
+    it('accepts notes text', () => {
+      criterion.notes = 'Assessor notes here';
+      expect(criterion.notes).toBe('Assessor notes here');
+    });
+  });
+
   describe('verificationMethod field', () => {
     it('should accept a string value', () => {
       criterion.verificationMethod =

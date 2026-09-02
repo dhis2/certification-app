@@ -22,7 +22,7 @@ const sortedCategories = (template: TemplateResponse): CategoryResponse[] => [..
 
 const sortedCriteria = (category: CategoryResponse): CriterionResponse[] => [...(category.criteria ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
 
-const criterionHasExpandedContent = (c: CriterionResponse): boolean => Boolean(c.description || c.verificationMethod || c.justification)
+const criterionHasExpandedContent = (c: CriterionResponse): boolean => Boolean(c.description || c.verificationMethod || c.justification || c.verificationCommands || c.notes)
 
 const ScoringTable = ({ scoring }: { scoring: ComplianceStatusScoring }) => {
     const rows: Array<{ label: string; value: string }> = [
@@ -255,6 +255,18 @@ ${root.outerHTML}
                                                                 <div className={styles.block}>
                                                                     <div className={styles.blockLabel}>Justification</div>
                                                                     {c.justification}
+                                                                </div>
+                                                            ) : null}
+                                                            {c.verificationCommands ? (
+                                                                <div className={styles.block}>
+                                                                    <div className={styles.blockLabel}>Verification commands</div>
+                                                                    <pre className={styles.commands}>{c.verificationCommands}</pre>
+                                                                </div>
+                                                            ) : null}
+                                                            {c.notes ? (
+                                                                <div className={styles.block}>
+                                                                    <div className={styles.blockLabel}>Notes</div>
+                                                                    {c.notes}
                                                                 </div>
                                                             ) : null}
                                                         </details>

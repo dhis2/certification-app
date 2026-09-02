@@ -1,7 +1,7 @@
 import { Card, Tag, TextAreaField, InputField, IconInfo16 } from '@dhis2/ui'
 import type { FC } from 'react'
 import { useState, useCallback } from 'react'
-import { Criterion, SubmissionResponse, ComplianceStatus, ControlGroup, SaveSingleResponseDto } from '../../types/index.ts'
+import { Criterion, SubmissionResponse, ComplianceStatus, ControlGroup, SaveSingleResponseDto, complianceStatusConfig } from '../../types/index.ts'
 import { ComplianceSelector } from './compliance-selector.tsx'
 import styles from './control-card.module.css'
 
@@ -24,7 +24,7 @@ export const ControlCard: FC<ControlCardProps> = ({ criterion, response, onChang
             onChange({
                 criterionId: criterion.id,
                 complianceStatus: status,
-                score: response?.score,
+                score: complianceStatusConfig[status].score ?? undefined,
                 findings: response?.findings,
                 evidenceNotes: response?.evidenceNotes,
                 remediationRequired: needsRemediation,
@@ -109,6 +109,20 @@ export const ControlCard: FC<ControlCardProps> = ({ criterion, response, onChang
                             <span className={styles.mappingValue}>{criterion.verificationMethod}</span>
                         </div>
                     )}
+
+                    {criterion.justification && (
+                        <div className={styles.guidanceSection}>
+                            <h5 className={styles.sectionTitle}>Justification</h5>
+                            <p className={styles.guidance}>{criterion.justification}</p>
+                        </div>
+                    )}
+
+                    {criterion.verificationCommands && (
+                        <div className={styles.commandsSection}>
+                            <h5 className={styles.sectionTitle}>Verification Commands</h5>
+                            <pre className={styles.commands}>{criterion.verificationCommands}</pre>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -127,12 +141,12 @@ export const ControlCard: FC<ControlCardProps> = ({ criterion, response, onChang
 
                 <div className={styles.fieldsGrid}>
                     <TextAreaField
-                        label="Findings"
+                        label="Notes"
                         name="findings"
                         value={response?.findings || ''}
                         onChange={(payload: { value: string }) => handleFieldChange('findings', payload.value)}
                         disabled={disabled}
-                        placeholder="Document your findings and observations..."
+                        placeholder={criterion.notes || 'Assessor notes here'}
                         rows={3}
                         data-test="findings-input"
                     />

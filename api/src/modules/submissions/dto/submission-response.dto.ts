@@ -62,6 +62,18 @@ export class SubmissionCriterionDto {
   @ApiPropertyOptional()
   verificationMethod!: string | null;
 
+  @ApiPropertyOptional()
+  justification!: string | null;
+
+  @ApiPropertyOptional()
+  verificationCommands!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  score!: number | null;
+
+  @ApiPropertyOptional()
+  notes!: string | null;
+
   @ApiProperty()
   weight!: number;
 
@@ -85,6 +97,10 @@ export class SubmissionCriterionDto {
     dto.controlType = criterion.controlType;
     dto.cisMapping = criterion.cisMapping;
     dto.verificationMethod = criterion.verificationMethod;
+    dto.justification = criterion.justification;
+    dto.verificationCommands = criterion.verificationCommands;
+    dto.score = criterion.score == null ? null : Number(criterion.score);
+    dto.notes = criterion.notes;
     dto.weight = Number(criterion.weight);
     dto.isMandatory = criterion.isMandatory;
     dto.evidenceRequired = criterion.evidenceRequired;

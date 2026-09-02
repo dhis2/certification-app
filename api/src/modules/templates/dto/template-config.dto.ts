@@ -93,6 +93,18 @@ export class TemplateConfigDto {
   maxJustificationLength!: number;
 
   @ApiProperty({
+    example: 16000,
+    description: 'Maximum verification commands length',
+  })
+  maxVerificationCommandsLength!: number;
+
+  @ApiProperty({
+    example: 8000,
+    description: 'Maximum criterion notes length',
+  })
+  maxNotesLength!: number;
+
+  @ApiProperty({
     example: 255,
     description: 'Maximum filename length',
   })
@@ -125,6 +137,9 @@ export class TemplateConfigDto {
     dto.maxCisMappingLength = TEMPLATE_VALIDATION_LIMITS.MAX_CIS_MAPPING_LENGTH;
     dto.maxJustificationLength =
       TEMPLATE_VALIDATION_LIMITS.MAX_JUSTIFICATION_LENGTH;
+    dto.maxVerificationCommandsLength =
+      TEMPLATE_VALIDATION_LIMITS.MAX_VERIFICATION_COMMANDS_LENGTH;
+    dto.maxNotesLength = TEMPLATE_VALIDATION_LIMITS.MAX_NOTES_LENGTH;
     dto.maxFilenameLength = TEMPLATE_VALIDATION_LIMITS.MAX_FILENAME_LENGTH;
     return dto;
   }

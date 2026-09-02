@@ -93,6 +93,15 @@ export class CriterionResponseDto {
   })
   justification!: string | null;
 
+  @ApiPropertyOptional()
+  verificationCommands!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  score!: number | null;
+
+  @ApiPropertyOptional()
+  notes!: string | null;
+
   @ApiProperty()
   createdAt!: Date;
 
@@ -117,6 +126,9 @@ export class CriterionResponseDto {
     dto.cisMapping = criterion.cisMapping;
     dto.verificationMethod = criterion.verificationMethod;
     dto.justification = criterion.justification;
+    dto.verificationCommands = criterion.verificationCommands;
+    dto.score = criterion.score == null ? null : Number(criterion.score);
+    dto.notes = criterion.notes;
     dto.createdAt = criterion.createdAt;
     return dto;
   }

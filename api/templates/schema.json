@@ -159,6 +159,22 @@
           "maxLength": 8000,
           "description": "Rationale / regulatory context for the control"
         },
+        "verificationCommands": {
+          "type": ["string", "null"],
+          "maxLength": 16000,
+          "description": "Commands or checks used to verify the control"
+        },
+        "score": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Optional placeholder score on the template; assessment scores are stored on responses"
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "maxLength": 8000,
+          "description": "Default or placeholder assessor notes for this control"
+        },
         "weight": {
           "type": "number",
           "minimum": 0,
