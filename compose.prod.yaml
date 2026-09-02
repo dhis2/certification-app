@@ -1,4 +1,4 @@
-name: dhis2-cert-app
+name: ${COMPOSE_PROJECT_NAME:-dhis2-cert-app}
 
 secrets:
   db_password:
