@@ -25,7 +25,7 @@
         "@dhis2/ui": "^10.12.11",
         "@dhis2/ui-constants": "^10.12.11",
         "@fontsource/roboto": "^5.2.10",
-        "axios": "^1.13.6",
+        "axios": "^1.18.0",
         "axios-hooks": "^5.1.1",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
@@ -74,6 +74,18 @@
         "prettier": "^3.3.3",
         "ts-jest": "^29.2.5",
         "typescript": "5.9.3",
-        "vite": "^6.3.5"
+        "vite": "^6.4.3"
+    },
+    "overrides": {
+        "@babel/core": "^7.29.7",
+        "@babel/plugin-transform-modules-systemjs": "^7.29.4",
+        "brace-expansion@1": "1.1.18",
+        "brace-expansion@2": "2.1.4",
+        "browserslist": "^4.28.8",
+        "form-data": "^4.0.6",
+        "js-yaml@3": "3.15.2",
+        "js-yaml@4": "^4.3.2",
+        "nanoid@3": "3.3.18",
+        "postcss": "^8.5.26"
     }
 }
