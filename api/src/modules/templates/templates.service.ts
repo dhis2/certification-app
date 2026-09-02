@@ -198,6 +198,84 @@ export class TemplatesService {
     });
   }
 
+  async createNextVersion(
+    sourceId: string,
+    dto: CreateTemplateDto,
+    userId: string,
+  ): Promise<AssessmentTemplate> {
+    const source = await this.findOne(sourceId);
+
+    if (!source.isPublished) {
+      throw new BadRequestException(
+        'Can only create a new version from a published template',
+      );
+    }
+
+    const latestVersion = await this.templateRepository.findOne({
+      where: { name: source.name },
+      order: { version: 'DESC' },
+    });
+    const newVersion = (latestVersion?.version ?? 0) + 1;
+
+    return this.dataSource.transaction(async (manager) => {
+      const template = manager.create(AssessmentTemplate, {
+        name: source.name,
+        description: dto.description ?? null,
+        version: newVersion,
+        isPublished: false,
+        parentVersionId: source.id,
+        effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : null,
+        effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
+        createdById: userId,
+      });
+
+      const savedTemplate = await manager.save(AssessmentTemplate, template);
+
+      if (dto.categories) {
+        await this.createCategoriesWithCriteria(
+          manager,
+          savedTemplate.id,
+          dto.categories,
+        );
+      }
+
+      const result = await manager.findOne(AssessmentTemplate, {
+        where: { id: savedTemplate.id },
+        relations: ['categories', 'categories.criteria'],
+      });
+
+      if (!result) {
+        throw new Error('Failed to reload created template version');
+      }
+
+      try {
+        await this.auditService.log(
+          {
+            eventType: AuditEventType.TEMPLATE_VERSIONED,
+            entityType: 'Template',
+            entityId: result.id,
+            entityName: result.name,
+            action: AuditAction.CREATE,
+            newValues: {
+              name: result.name,
+              version: result.version,
+              parentVersionId: source.id,
+              categoriesCount: result.categories.length,
+            },
+          },
+          { actorId: userId },
+        );
+      } catch (auditError) {
+        this.logger.error(
+          'Failed to log audit event for template versioning',
+          auditError instanceof Error ? auditError.stack : String(auditError),
+        );
+      }
+
+      return result;
+    });
+  }
+
   private async createCategoriesWithCriteria(
     manager: typeof this.dataSource.manager,
     templateId: string,
