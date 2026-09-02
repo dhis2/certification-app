@@ -260,6 +260,8 @@ jobs:
           RESOLVED_CLIENT_TAG: ${{ needs.validate.outputs.client_image_tag }}
           API_IMAGE_ESC: ghcr.io/${{ github.repository }}/api
           CLIENT_IMAGE_ESC: ghcr.io/${{ github.repository }}/client
+          INCLUDE_TRAEFIK_FLAG: ${{ vars.INCLUDE_TRAEFIK || 'true' }}
+          COMPOSE_PROJECT: ${{ vars.COMPOSE_PROJECT_NAME }}
         run: |
           set -euo pipefail
 
@@ -275,7 +277,14 @@ jobs:
             printf 'STACK_NAME=%s\n' "${STACK_NAME_DEPLOY}"
             printf 'EMAIL=%s\n' "${LE_EMAIL}"
             printf 'SECRETS_DIR=%s/secrets\n' "${APP_DIR_ESC}"
-            printf '%s\n' 'COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.traefik.yaml'
+            if [ "${INCLUDE_TRAEFIK_FLAG}" = "false" ]; then
+              printf '%s\n' 'COMPOSE_FILE=compose.yaml:compose.prod.yaml'
+            else
+              printf '%s\n' 'COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.traefik.yaml'
+            fi
+            if [ -n "${COMPOSE_PROJECT}" ]; then
+              printf 'COMPOSE_PROJECT_NAME=%s\n' "${COMPOSE_PROJECT}"
+            fi
             printf '%s\n' DB_HOST=dhis2-cert-db
             printf '%s\n' DB_PORT=5432
             printf 'DB_USER=%s\n' "${VALUE_DB_USER}"
@@ -324,7 +333,7 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml --env-file .env pull
+          docker compose --env-file .env pull
 
       - name: Cosign verify API image
         uses: ./.github/actions/cosign-verify-ghcr-image
@@ -345,7 +354,7 @@ jobs:
         run: |
           set -euo pipefail
           dcc() {
-            docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml --env-file .env "$@"
+            docker compose --env-file .env "$@"
           }
 
           snapshot_ref () {
@@ -370,7 +379,7 @@ jobs:
         run: |
           set -euo pipefail
           dcc() {
-            docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml --env-file .env "$@"
+            docker compose --env-file .env "$@"
           }
           dcc up -d dhis2-cert-db
           waited=0
@@ -388,11 +397,7 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          docker compose \
-            -f compose.yaml \
-            -f compose.prod.yaml \
-            -f compose.traefik.yaml \
-            --env-file .env \
+          docker compose --env-file .env \
             up -d \
             --remove-orphans \
             --wait \
@@ -409,7 +414,7 @@ jobs:
             exit 1
           fi
           waited=0
-          until docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml \
+          until docker compose --env-file .env \
             exec -T dhis2-cert-api wget --spider -q "http://127.0.0.1:${PORT_CHECK}/health/live"; do
             if [ "${waited}" -ge 120 ]; then
               echo '::error::API liveness timed out.'
@@ -565,7 +570,6 @@ jobs:
 
           dcc=(
             docker compose
-            -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml
             --env-file .env
           )
 
@@ -584,7 +588,7 @@ jobs:
             exit 1
           fi
           waited=0
-          until docker compose -f compose.yaml -f compose.prod.yaml -f compose.traefik.yaml \
+          until docker compose --env-file .env \
             exec -T dhis2-cert-api wget --spider -q "http://127.0.0.1:${PORT_CHECK}/health/live"; do
             if [ "${waited}" -ge 90 ]; then
               echo '::error::Rollback did not restore API liveness.'
