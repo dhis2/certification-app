@@ -22,8 +22,7 @@ const sortedCategories = (template: TemplateResponse): CategoryResponse[] => [..
 
 const sortedCriteria = (category: CategoryResponse): CriterionResponse[] => [...(category.criteria ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
 
-const criterionHasExpandedContent = (c: CriterionResponse): boolean =>
-    Boolean(c.description || c.verificationMethod || c.justification || c.verificationCommands || c.notes)
+const criterionHasExpandedContent = (c: CriterionResponse): boolean => Boolean(c.description || c.verificationMethod || c.justification || c.verificationCommands || c.notes)
 
 const ScoringTable = ({ scoring }: { scoring: ComplianceStatusScoring }) => {
     const rows: Array<{ label: string; value: string }> = [

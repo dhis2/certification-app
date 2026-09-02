@@ -330,7 +330,7 @@ export class TemplateLoaderService implements OnModuleInit {
     } = input;
 
     const normalizedCategories = Array.isArray(categories)
-      ? categories.map((cat, index) => {
+      ? (categories as unknown[]).map((cat, index) => {
           if (!cat || typeof cat !== 'object' || Array.isArray(cat)) {
             return cat;
           }
