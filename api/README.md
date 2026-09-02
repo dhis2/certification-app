@@ -21,11 +21,7 @@ Apply migrations before starting against a new database:
 npm run migration:run
 ```
 
-Optional seed data:
-
-```bash
-npm run seed:template
-```
+The shipped catalog is `templates/dhis2-certification-v1.yaml`. Import it from Templates in the client, or `POST /templates/import`. Startup can also load `templates/*.yaml` when `TEMPLATES_AUTO_SYNC` is true. Re-importing a changed catalog publishes a new version; an unchanged file is a no-op.
 
 ## Run
 

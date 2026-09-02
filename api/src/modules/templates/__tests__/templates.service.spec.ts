@@ -233,6 +233,55 @@ describe('TemplatesService', () => {
     });
   });
 
+  describe('createNextVersion', () => {
+    it('should create the next version from a published template', async () => {
+      const source = createMockTemplate({ isPublished: true, version: 1 });
+      const created = createMockTemplate({
+        id: 'template-v2',
+        version: 2,
+        isPublished: false,
+        parentVersionId: source.id,
+      });
+
+      mockTemplateRepository.findOne
+        .mockResolvedValueOnce(source)
+        .mockResolvedValueOnce(source);
+      mockDataSource.transaction.mockImplementation(
+        (callback: (manager: unknown) => Promise<AssessmentTemplate>) => {
+          const mockManager = {
+            create: jest.fn().mockReturnValue(created),
+            save: jest.fn().mockResolvedValue(created),
+            findOne: jest.fn().mockResolvedValue(created),
+          };
+          return callback(mockManager);
+        },
+      );
+
+      const result = await service.createNextVersion(
+        source.id,
+        { name: source.name, description: 'Updated catalog' },
+        'user-123',
+      );
+
+      expect(result.version).toBe(2);
+      expect(result.parentVersionId).toBe(source.id);
+    });
+
+    it('should throw if the source template is not published', async () => {
+      mockTemplateRepository.findOne.mockResolvedValue(
+        createMockTemplate({ isPublished: false }),
+      );
+
+      await expect(
+        service.createNextVersion(
+          'template-123',
+          { name: 'DHIS2 Server Certification' },
+          'user-123',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('update', () => {
     it('should update a draft template', async () => {
       const template = createMockTemplate({ isPublished: false });

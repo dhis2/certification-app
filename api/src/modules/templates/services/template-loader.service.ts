@@ -18,7 +18,9 @@ import {
   TemplateSyncResult,
 } from '../interfaces/template-definition.interface';
 import { TemplatesService } from '../templates.service';
+import { CreateTemplateDto } from '../dto';
 import { ControlType, ControlGroup } from '../../../common/enums';
+import { AssessmentTemplate } from '../entities/assessment-template.entity';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_EXTENSIONS = ['.yaml', '.yml'];
@@ -191,75 +193,48 @@ export class TemplateLoaderService implements OnModuleInit {
     const existing = await this.templatesService.findPublishedByName(
       definition.name,
     );
+    const createDto = this.toCreateDto(this.normalizeDefinition(definition));
+    const criteriaCount = (createDto.categories ?? []).reduce(
+      (sum, cat) => sum + (cat.criteria?.length ?? 0),
+      0,
+    );
 
-    if (existing && existing.version >= definition.version) {
-      const criteriaCount = existing.categories.reduce(
-        (sum, cat) => sum + cat.criteria.length,
-        0,
+    if (existing) {
+      const unchanged =
+        this.sameCatalog(existing, createDto) &&
+        existing.version >= definition.version;
+      if (unchanged) {
+        return {
+          created: false,
+          updated: false,
+          templateId: existing.id,
+          name: existing.name,
+          version: existing.version,
+          categoriesCount: existing.categories.length,
+          criteriaCount,
+        };
+      }
+
+      const draft = await this.templatesService.createNextVersion(
+        existing.id,
+        createDto,
+        userId,
       );
+      await this.versioningService.publish(draft.id);
+
       return {
         created: false,
-        updated: false,
-        templateId: existing.id,
-        name: existing.name,
-        version: existing.version,
-        categoriesCount: existing.categories.length,
+        updated: true,
+        templateId: draft.id,
+        name: draft.name,
+        version: draft.version,
+        categoriesCount: createDto.categories?.length ?? 0,
         criteriaCount,
       };
     }
 
-    const normalizedDefinition = this.normalizeDefinition(definition);
-
-    const template = await this.templatesService.create(
-      {
-        name: normalizedDefinition.name,
-        description: normalizedDefinition.description,
-        effectiveFrom: normalizedDefinition.effectiveFrom,
-        effectiveTo: normalizedDefinition.effectiveTo,
-        categories: normalizedDefinition.categories.map((cat) => ({
-          name: cat.name,
-          description: cat.description,
-          weight: cat.weight,
-          sortOrder: cat.sortOrder,
-          criteria: cat.criteria.map((crit, critIdx) => ({
-            code: crit.code,
-            name: crit.name,
-            description: crit.description,
-            guidance: crit.guidance ?? crit.verificationMethod,
-            verificationMethod: crit.verificationMethod,
-            weight: this.calculateCriterionWeight(cat.criteria.length),
-            isMandatory: crit.isMandatory ?? false,
-            isCriticalFail:
-              crit.isCriticalFail ??
-              (crit.controlType === ControlType.TECHNICAL &&
-                (crit.isMandatory ?? false)),
-            minPassingScore:
-              crit.minPassingScore ??
-              (crit.controlType === ControlType.TECHNICAL ? 100 : 0),
-            maxScore: crit.maxScore ?? 100,
-            evidenceRequired: crit.evidenceRequired ?? false,
-            evidenceDescription: crit.evidenceDescription,
-            sortOrder: critIdx + 1,
-            controlGroup:
-              (crit.controlGroup as ControlGroup) ?? ControlGroup.DSCP1,
-            controlType: crit.controlType as ControlType,
-            cisMapping: crit.cisMapping,
-            justification: crit.justification ?? null,
-            verificationCommands: crit.verificationCommands ?? null,
-            score: crit.score ?? null,
-            notes: crit.notes ?? null,
-          })),
-        })),
-      },
-      userId,
-    );
-
+    const template = await this.templatesService.create(createDto, userId);
     await this.versioningService.publish(template.id);
-
-    const criteriaCount = normalizedDefinition.categories.reduce(
-      (sum, cat) => sum + cat.criteria.length,
-      0,
-    );
 
     return {
       created: true,
@@ -267,9 +242,59 @@ export class TemplateLoaderService implements OnModuleInit {
       templateId: template.id,
       name: template.name,
       version: template.version,
-      categoriesCount: normalizedDefinition.categories.length,
+      categoriesCount: createDto.categories?.length ?? 0,
       criteriaCount,
     };
+  }
+
+  private toCreateDto(definition: TemplateDefinition): CreateTemplateDto {
+    return {
+      name: definition.name,
+      description: definition.description,
+      effectiveFrom: definition.effectiveFrom,
+      effectiveTo: definition.effectiveTo,
+      categories: definition.categories.map((cat) => ({
+        name: cat.name,
+        description: cat.description,
+        weight: cat.weight,
+        sortOrder: cat.sortOrder,
+        criteria: cat.criteria.map((crit, critIdx) => ({
+          code: crit.code,
+          name: crit.name,
+          description: crit.description,
+          guidance: crit.guidance ?? crit.verificationMethod,
+          verificationMethod: crit.verificationMethod,
+          weight: this.calculateCriterionWeight(cat.criteria.length),
+          isMandatory: crit.isMandatory ?? false,
+          isCriticalFail:
+            crit.isCriticalFail ??
+            (crit.controlType === ControlType.TECHNICAL &&
+              (crit.isMandatory ?? false)),
+          minPassingScore:
+            crit.minPassingScore ??
+            (crit.controlType === ControlType.TECHNICAL ? 100 : 0),
+          maxScore: crit.maxScore ?? 100,
+          evidenceRequired: crit.evidenceRequired ?? false,
+          evidenceDescription: crit.evidenceDescription,
+          sortOrder: critIdx + 1,
+          controlGroup:
+            (crit.controlGroup as ControlGroup) ?? ControlGroup.DSCP1,
+          controlType: crit.controlType as ControlType,
+          cisMapping: crit.cisMapping,
+          justification: crit.justification ?? null,
+          verificationCommands: crit.verificationCommands ?? null,
+          score: crit.score ?? null,
+          notes: crit.notes ?? null,
+        })),
+      })),
+    };
+  }
+
+  private sameCatalog(
+    existing: AssessmentTemplate,
+    incoming: CreateTemplateDto,
+  ): boolean {
+    return catalogFingerprint(existing) === catalogFingerprintFromDto(incoming);
   }
 
   private normalizeDefinition(
@@ -389,4 +414,90 @@ export class TemplateLoaderService implements OnModuleInit {
       );
     }
   }
+}
+
+function nullableText(value: string | null | undefined): string | null {
+  return value == null || value === '' ? null : value;
+}
+
+function nullableNumber(
+  value: number | string | null | undefined,
+): number | null {
+  return value == null || value === '' ? null : Number(value);
+}
+
+function catalogFingerprint(template: AssessmentTemplate): string {
+  return JSON.stringify({
+    description: nullableText(template.description),
+    categories: [...template.categories]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((cat) => ({
+        name: cat.name,
+        description: nullableText(cat.description),
+        weight: Number(cat.weight),
+        sortOrder: cat.sortOrder,
+        criteria: [...cat.criteria]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((crit) => ({
+            code: crit.code,
+            name: crit.name,
+            description: nullableText(crit.description),
+            guidance: nullableText(crit.guidance),
+            verificationMethod: nullableText(crit.verificationMethod),
+            justification: nullableText(crit.justification),
+            controlType: crit.controlType,
+            controlGroup: crit.controlGroup,
+            isMandatory: crit.isMandatory,
+            isCriticalFail: crit.isCriticalFail,
+            evidenceRequired: crit.evidenceRequired,
+            evidenceDescription: nullableText(crit.evidenceDescription),
+            cisMapping: nullableText(crit.cisMapping),
+            verificationCommands: nullableText(crit.verificationCommands),
+            score: nullableNumber(crit.score),
+            notes: nullableText(crit.notes),
+            weight: Number(crit.weight),
+            minPassingScore: Number(crit.minPassingScore),
+            maxScore: Number(crit.maxScore),
+            sortOrder: crit.sortOrder,
+          })),
+      })),
+  });
+}
+
+function catalogFingerprintFromDto(dto: CreateTemplateDto): string {
+  return JSON.stringify({
+    description: nullableText(dto.description),
+    categories: [...(dto.categories ?? [])]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((cat) => ({
+        name: cat.name,
+        description: nullableText(cat.description),
+        weight: Number(cat.weight),
+        sortOrder: cat.sortOrder,
+        criteria: [...(cat.criteria ?? [])]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((crit) => ({
+            code: crit.code,
+            name: crit.name,
+            description: nullableText(crit.description),
+            guidance: nullableText(crit.guidance),
+            verificationMethod: nullableText(crit.verificationMethod),
+            justification: nullableText(crit.justification),
+            controlType: crit.controlType,
+            controlGroup: crit.controlGroup,
+            isMandatory: crit.isMandatory ?? false,
+            isCriticalFail: crit.isCriticalFail ?? false,
+            evidenceRequired: crit.evidenceRequired ?? false,
+            evidenceDescription: nullableText(crit.evidenceDescription),
+            cisMapping: nullableText(crit.cisMapping),
+            verificationCommands: nullableText(crit.verificationCommands),
+            score: nullableNumber(crit.score),
+            notes: nullableText(crit.notes),
+            weight: Number(crit.weight),
+            minPassingScore: Number(crit.minPassingScore ?? 0),
+            maxScore: Number(crit.maxScore ?? 100),
+            sortOrder: crit.sortOrder,
+          })),
+      })),
+  });
 }

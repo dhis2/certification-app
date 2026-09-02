@@ -49,6 +49,41 @@ const createMockTemplate = (overrides = {}) => ({
   ...overrides,
 });
 
+function matchingPublishedYaml(
+  version: number,
+  overrides: { notes?: string } = {},
+): string {
+  const notes = overrides.notes ?? 'Assessor notes here';
+  return `
+name: Test Template
+description: Test description
+version: ${String(version)}
+categories:
+  - name: Category 1
+    description: Cat desc
+    weight: 1.0
+    sortOrder: 1
+    criteria:
+      - code: TC-01
+        name: Test Criterion
+        description: Desc
+        guidance: Guidance
+        verificationMethod: Method
+        isMandatory: true
+        isCriticalFail: false
+        minPassingScore: 0
+        maxScore: 100
+        evidenceRequired: true
+        evidenceDescription: Evidence
+        controlGroup: DSCP1
+        controlType: technical
+        cisMapping: "1.1"
+        justification: Continuity of reporting.
+        verificationCommands: sudo crontab -l
+        notes: ${notes}
+`;
+}
+
 describe('TemplateLoaderService', () => {
   let service: TemplateLoaderService;
   let mockConfigService: { get: jest.Mock };
@@ -60,6 +95,7 @@ describe('TemplateLoaderService', () => {
     findOne: jest.Mock;
     findPublishedByName: jest.Mock;
     create: jest.Mock;
+    createNextVersion: jest.Mock;
   };
   let mockVersioningService: {
     publish: jest.Mock;
@@ -90,6 +126,7 @@ describe('TemplateLoaderService', () => {
       create: jest
         .fn()
         .mockResolvedValue(createMockTemplate({ id: 'new-123' })),
+      createNextVersion: jest.fn(),
     };
 
     mockVersioningService = {
@@ -156,7 +193,9 @@ categories:
         'crontab',
       );
       expect(result.categories[0].criteria[0].score).toBeNull();
-      expect(result.categories[0].criteria[0].notes).toBe('Assessor notes here');
+      expect(result.categories[0].criteria[0].notes).toBe(
+        'Assessor notes here',
+      );
     });
 
     it('should reject content exceeding size limit', () => {
@@ -198,29 +237,62 @@ categories:
       expect(mockVersioningService.publish).toHaveBeenCalledWith('new-123');
     });
 
-    it('should skip sync if same version already exists', async () => {
+    it('should skip sync if the published catalog is unchanged', async () => {
       mockTemplatesService.findPublishedByName.mockResolvedValue(
         createMockTemplate({ version: 1 }),
       );
 
-      const yamlContent = `
-name: Test Template
-version: 1
-categories:
-  - name: Category 1
-    weight: 1.0
-    sortOrder: 1
-    criteria:
-      - code: TC-01
-        name: Test
-        controlType: technical
-`;
-
-      const result = await service.syncFromContent(yamlContent, 'user-123');
+      const result = await service.syncFromContent(
+        matchingPublishedYaml(1),
+        'user-123',
+      );
 
       expect(result.created).toBe(false);
       expect(result.updated).toBe(false);
       expect(mockTemplatesService.create).not.toHaveBeenCalled();
+      expect(mockTemplatesService.createNextVersion).not.toHaveBeenCalled();
+    });
+
+    it('should publish a new version when the catalog changed', async () => {
+      mockTemplatesService.findPublishedByName.mockResolvedValue(
+        createMockTemplate({ version: 1 }),
+      );
+      mockTemplatesService.createNextVersion.mockResolvedValue(
+        createMockTemplate({ id: 'template-v2', version: 2 }),
+      );
+
+      const result = await service.syncFromContent(
+        matchingPublishedYaml(1, { notes: 'Changed notes' }),
+        'user-123',
+      );
+
+      expect(result.created).toBe(false);
+      expect(result.updated).toBe(true);
+      expect(result.version).toBe(2);
+      expect(mockTemplatesService.create).not.toHaveBeenCalled();
+      expect(mockTemplatesService.createNextVersion).toHaveBeenCalledWith(
+        'template-123',
+        expect.objectContaining({ name: 'Test Template' }),
+        'user-123',
+      );
+      expect(mockVersioningService.publish).toHaveBeenCalledWith('template-v2');
+    });
+
+    it('should publish a new version when the file version is higher', async () => {
+      mockTemplatesService.findPublishedByName.mockResolvedValue(
+        createMockTemplate({ version: 1 }),
+      );
+      mockTemplatesService.createNextVersion.mockResolvedValue(
+        createMockTemplate({ id: 'template-v2', version: 2 }),
+      );
+
+      const result = await service.syncFromContent(
+        matchingPublishedYaml(2),
+        'user-123',
+      );
+
+      expect(result.updated).toBe(true);
+      expect(mockTemplatesService.createNextVersion).toHaveBeenCalled();
     });
 
     it('should reject invalid template definition', async () => {
