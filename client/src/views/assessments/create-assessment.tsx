@@ -18,7 +18,7 @@ export const CreateAssessment: FC = () => {
     const [searchParams] = useSearchParams()
     const preselectedImplId = searchParams.get('implementationId')
 
-    const { implementations, loading: implsLoading } = useImplementations()
+    const { implementations, loading: implsLoading } = useImplementations({ isActive: true })
     const { templates, loading: templatesLoading } = useTemplates()
     const { createSubmission } = useSubmissions()
 
@@ -39,6 +39,15 @@ export const CreateAssessment: FC = () => {
             setFormData((prev) => ({ ...prev, implementationId: preselectedImplId }))
         }
     }, [preselectedImplId])
+
+    useEffect(() => {
+        if (!formData.implementationId || implementations.length === 0) {
+            return
+        }
+        if (!implementations.some((impl) => impl.id === formData.implementationId)) {
+            setFormData((prev) => ({ ...prev, implementationId: '' }))
+        }
+    }, [implementations, formData.implementationId])
 
     useEffect(() => {
         if (templates.length === 1 && !formData.templateId) {

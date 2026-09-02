@@ -22,9 +22,10 @@ export class ImplementationsPage extends BasePage {
     readonly submitButton: Locator
     readonly cancelButton: Locator
 
-    readonly deleteModal: Locator
-    readonly confirmDeleteButton: Locator
-    readonly cancelDeleteButton: Locator
+    readonly statusFilter: Locator
+    readonly archiveModal: Locator
+    readonly confirmArchiveButton: Locator
+    readonly cancelArchiveButton: Locator
 
     readonly loadingSpinner: Locator
     readonly errorNotice: Locator
@@ -53,9 +54,10 @@ export class ImplementationsPage extends BasePage {
         this.submitButton = page.locator('[data-test="submit-implementation"], button[type="submit"]:has-text("Create")')
         this.cancelButton = page.locator('button:has-text("Cancel")')
 
-        this.deleteModal = page.locator('[role="dialog"]:has-text("Delete Implementation")')
-        this.confirmDeleteButton = page.locator('button:has-text("Delete")').last()
-        this.cancelDeleteButton = this.deleteModal.locator('button:has-text("Cancel")')
+        this.statusFilter = page.locator('[data-test="status-filter"]')
+        this.archiveModal = page.locator('[role="dialog"]:has-text("Archive Implementation")')
+        this.confirmArchiveButton = this.archiveModal.locator('button:has-text("Archive")')
+        this.cancelArchiveButton = this.archiveModal.locator('button:has-text("Cancel")')
 
         this.loadingSpinner = page.locator('[class*="loadingContainer"]')
         this.errorNotice = page.locator('[class*="NoticeBox"][class*="error"], [class*="error"]')
@@ -192,12 +194,27 @@ export class ImplementationsPage extends BasePage {
         await this.page.waitForURL(/\/implementations\/[^/]+$/)
     }
 
-    async deleteImplementation(rowIndex: number): Promise<void> {
-        const row = this.tableRows.nth(rowIndex)
-        await row.locator('button:has-text("Delete")').click()
-        await this.deleteModal.waitFor({ state: 'visible' })
-        await this.confirmDeleteButton.click()
-        await this.deleteModal.waitFor({ state: 'hidden', timeout: 10000 })
+    async setStatusFilter(status: 'Active' | 'Archived' | 'All'): Promise<void> {
+        await this.statusFilter.click()
+        const option = this.page.locator('[data-test="dhis2-uicore-select-menu-menuwrapper"]').getByText(status, { exact: true })
+        await option.waitFor({ state: 'visible' })
+        await option.click()
+        await this.waitForTableLoad()
+    }
+
+    async archiveImplementation(name: string): Promise<void> {
+        const row = this.tableRows.filter({ hasText: name }).first()
+        await row.getByRole('button', { name: 'Archive' }).click()
+        await this.archiveModal.waitFor({ state: 'visible' })
+        await this.confirmArchiveButton.click()
+        await this.archiveModal.waitFor({ state: 'hidden', timeout: 10000 })
+        await this.waitForTableLoad()
+    }
+
+    async openArchiveModal(name: string): Promise<void> {
+        const row = this.tableRows.filter({ hasText: name }).first()
+        await row.getByRole('button', { name: 'Archive' }).click()
+        await this.archiveModal.waitFor({ state: 'visible' })
     }
 
     async getImplementationNames(): Promise<string[]> {

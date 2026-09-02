@@ -17,6 +17,7 @@ describe('ImplementationsController', () => {
     findAll: jest.Mock;
     findOne: jest.Mock;
     update: jest.Mock;
+    restore: jest.Mock;
     remove: jest.Mock;
   };
 
@@ -54,6 +55,7 @@ describe('ImplementationsController', () => {
       findAll: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
+      restore: jest.fn(),
       remove: jest.fn(),
     };
 
@@ -266,6 +268,16 @@ describe('ImplementationsController', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('should propagate ConflictException when implementation is archived', async () => {
+      service.update.mockRejectedValue(
+        new ConflictException('Cannot update an archived implementation'),
+      );
+
+      await expect(
+        controller.update(mockImplementationId, updateDto, mockActiveUser),
+      ).rejects.toThrow(ConflictException);
+    });
+
     it('should handle partial update', async () => {
       const partialUpdate: UpdateImplementationDto = { country: 'Tanzania' };
       const updatedImplementation = {
@@ -282,6 +294,35 @@ describe('ImplementationsController', () => {
 
       expect(result.country).toBe('Tanzania');
       expect(result.name).toBe(mockImplementation.name);
+    });
+  });
+
+  describe('restore', () => {
+    it('should restore implementation and return response DTO', async () => {
+      const restored = { ...mockImplementation, isActive: true };
+      service.restore.mockResolvedValue(restored);
+
+      const result = await controller.restore(
+        mockImplementationId,
+        mockActiveUser,
+      );
+
+      expect(service.restore).toHaveBeenCalledWith(
+        mockImplementationId,
+        mockUserId,
+      );
+      expect(result).toBeInstanceOf(ImplementationResponseDto);
+      expect(result.isActive).toBe(true);
+    });
+
+    it('should propagate ConflictException from service', async () => {
+      service.restore.mockRejectedValue(
+        new ConflictException('Implementation with this name already exists'),
+      );
+
+      await expect(
+        controller.restore(mockImplementationId, mockActiveUser),
+      ).rejects.toThrow(ConflictException);
     });
   });
 

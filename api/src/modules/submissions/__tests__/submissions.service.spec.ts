@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { SubmissionsService } from '../services/submissions.service';
 import { ScoringService } from '../services/scoring.service';
 import { Submission } from '../entities/submission.entity';
@@ -296,6 +300,17 @@ describe('SubmissionsService', () => {
       const result = await service.create(dtoWithoutCG, mockUserId);
 
       expect(result.targetControlGroup).toBe(ControlGroup.DSCP1);
+    });
+
+    it('should throw ConflictException if implementation is archived', async () => {
+      const archived = createMockImplementation();
+      archived.isActive = false;
+      implementationRepo.findOne.mockResolvedValue(archived);
+
+      await expect(service.create(createDto, mockUserId)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(submissionRepo.save).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if implementation not found', async () => {

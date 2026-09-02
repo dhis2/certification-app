@@ -141,6 +141,9 @@ export class ImplementationsService {
     userId: string,
   ): Promise<Implementation> {
     const implementation = await this.findOne(id);
+    if (implementation.isActive === false) {
+      throw new ConflictException('Cannot update an archived implementation');
+    }
     const oldValues = { name: implementation.name };
 
     Object.assign(implementation, dto);
@@ -177,5 +180,39 @@ export class ImplementationsService {
       },
       { actorId: userId },
     );
+  }
+
+  async restore(id: string, userId: string): Promise<Implementation> {
+    const implementation = await this.findOne(id);
+    if (implementation.isActive) {
+      return implementation;
+    }
+
+    const existing = await this.implementationRepository.findOne({
+      where: { name: implementation.name, isActive: true },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Implementation with this name already exists',
+      );
+    }
+
+    implementation.isActive = true;
+    const saved = await this.implementationRepository.save(implementation);
+
+    await this.auditService.log(
+      {
+        eventType: AuditEventType.IMPLEMENTATION_RESTORED,
+        entityType: 'Implementation',
+        entityId: saved.id,
+        entityName: saved.name,
+        action: AuditAction.UPDATE,
+        oldValues: { isActive: false },
+        newValues: { isActive: true },
+      },
+      { actorId: userId },
+    );
+
+    return saved;
   }
 }

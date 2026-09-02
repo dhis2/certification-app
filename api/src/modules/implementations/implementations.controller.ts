@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   ParseUUIDPipe,
+  ParseBoolPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -91,7 +92,8 @@ export class ImplementationsController {
     description: 'Paginated list of implementations',
   })
   async findAll(
-    @Query('isActive') isActive?: boolean,
+    @Query('isActive', new ParseBoolPipe({ optional: true }))
+    isActive?: boolean,
     @Query('search') search?: string,
     @Query('first') first?: string,
     @Query('after') after?: string,
@@ -148,6 +150,10 @@ export class ImplementationsController {
     type: ImplementationResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Implementation not found' })
+  @ApiResponse({
+    status: 409,
+    description: 'Implementation is archived',
+  })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateImplementationDto,
@@ -156,6 +162,36 @@ export class ImplementationsController {
     const implementation = await this.implementationsService.update(
       id,
       dto,
+      user.sub,
+    );
+    return ImplementationResponseDto.fromEntity(implementation);
+  }
+
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restore an archived implementation' })
+  @ApiParam({
+    name: 'id',
+    description: 'Implementation ID (UUID)',
+    example: '01912345-6789-7abc-def0-123456789abc',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Implementation restored',
+    type: ImplementationResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Implementation not found' })
+  @ApiResponse({
+    status: 409,
+    description: 'An active implementation already has this name',
+  })
+  async restore(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveUser() user: ActiveUserData,
+  ): Promise<ImplementationResponseDto> {
+    const implementation = await this.implementationsService.restore(
+      id,
       user.sub,
     );
     return ImplementationResponseDto.fromEntity(implementation);

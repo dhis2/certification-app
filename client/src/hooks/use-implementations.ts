@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Implementation, CreateImplementationDto, UpdateImplementationDto, ImplementationsConnection } from '../types'
 import { useAuthAxios } from './use-auth-axios.ts'
+
+interface UseImplementationsOptions {
+    isActive?: boolean
+}
 
 interface UseImplementationsReturn {
     implementations: Implementation[]
@@ -9,21 +13,33 @@ interface UseImplementationsReturn {
     error: Error | null
     createImplementation: (dto: CreateImplementationDto) => Promise<Implementation>
     updateImplementation: (id: string, dto: UpdateImplementationDto) => Promise<Implementation>
+    restoreImplementation: (id: string) => Promise<Implementation>
     deleteImplementation: (id: string) => Promise<void>
     refetch: () => Promise<void>
 }
 
-export const useImplementations = (): UseImplementationsReturn => {
+export const useImplementations = (options: UseImplementationsOptions = {}): UseImplementationsReturn => {
     const [implementations, setImplementations] = useState<Implementation[]>([])
     const [totalCount, setTotalCount] = useState(0)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<Error | null>(null)
 
-    const [{ loading: fetchLoading, error: fetchError }, execute] = useAuthAxios<ImplementationsConnection>({ url: '/implementations', method: 'GET' }, { manual: true })
+    const url = useMemo(() => {
+        const params = new URLSearchParams()
+        if (options.isActive !== undefined) {
+            params.set('isActive', String(options.isActive))
+        }
+        const query = params.toString()
+        return `/implementations${query ? `?${query}` : ''}`
+    }, [options.isActive])
+
+    const [{ loading: fetchLoading, error: fetchError }, execute] = useAuthAxios<ImplementationsConnection>({ url, method: 'GET' }, { manual: true })
 
     const [, executeCreate] = useAuthAxios<Implementation>({ url: '/implementations', method: 'POST' }, { manual: true })
 
     const [, executeUpdate] = useAuthAxios<Implementation>({ method: 'PATCH' }, { manual: true })
+
+    const [, executeRestore] = useAuthAxios<Implementation>({ method: 'POST' }, { manual: true })
 
     const [, executeDelete] = useAuthAxios({ method: 'DELETE' }, { manual: true })
 
@@ -72,6 +88,15 @@ export const useImplementations = (): UseImplementationsReturn => {
         [executeUpdate, refetch]
     )
 
+    const restoreImplementation = useCallback(
+        async (id: string): Promise<Implementation> => {
+            const response = await executeRestore({ url: `/implementations/${id}/restore` })
+            await refetch()
+            return response.data
+        },
+        [executeRestore, refetch]
+    )
+
     const deleteImplementation = useCallback(
         async (id: string): Promise<void> => {
             await executeDelete({ url: `/implementations/${id}` })
@@ -87,6 +112,7 @@ export const useImplementations = (): UseImplementationsReturn => {
         error,
         createImplementation,
         updateImplementation,
+        restoreImplementation,
         deleteImplementation,
         refetch,
     }

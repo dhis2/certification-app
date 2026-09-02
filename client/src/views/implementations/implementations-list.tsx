@@ -16,26 +16,42 @@ import {
     ModalContent,
     ModalActions,
     ButtonStrip,
+    SingleSelectField,
+    SingleSelectOption,
 } from '@dhis2/ui'
 import { useState, useMemo, useCallback } from 'react'
 import type { FC } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heading, ConfirmationModal } from '../../components/index.ts'
-import { useImplementations } from '../../hooks/index.ts'
+import { useAuth, useImplementations } from '../../hooks/index.ts'
 import type { Implementation, CreateImplementationDto } from '../../types/index.ts'
 import { ImplementationForm } from './implementation-form.tsx'
 import styles from './implementations-list.module.css'
 
 const PAGE_SIZE = 10
 
+type StatusFilter = 'active' | 'archived' | 'all'
+
+const statusOptions: { value: StatusFilter; label: string }[] = [
+    { value: 'active', label: 'Active' },
+    { value: 'archived', label: 'Archived' },
+    { value: 'all', label: 'All' },
+]
+
+const ARCHIVE_MESSAGE = 'It will leave the working list. Existing assessments and certificates stay. New assessments cannot be started.'
+
 export const ImplementationsList: FC = () => {
     const navigate = useNavigate()
-    const { implementations, loading, error, createImplementation, deleteImplementation, refetch } = useImplementations()
+    const { isAdmin } = useAuth()
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+    const isActive = statusFilter === 'all' ? undefined : statusFilter === 'active'
+    const { implementations, loading, error, createImplementation, restoreImplementation, deleteImplementation, refetch } = useImplementations({ isActive })
 
     const [searchTerm, setSearchTerm] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const [showCreateModal, setShowCreateModal] = useState(false)
-    const [deleteTarget, setDeleteTarget] = useState<Implementation | null>(null)
+    const [archiveTarget, setArchiveTarget] = useState<Implementation | null>(null)
+    const [restoreTarget, setRestoreTarget] = useState<Implementation | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [actionError, setActionError] = useState('')
 
@@ -71,21 +87,37 @@ export const ImplementationsList: FC = () => {
         [createImplementation]
     )
 
-    const handleDelete = useCallback(async () => {
-        if (!deleteTarget) {
+    const handleArchive = useCallback(async () => {
+        if (!archiveTarget) {
             return
         }
         setIsSubmitting(true)
         setActionError('')
         try {
-            await deleteImplementation(deleteTarget.id)
-            setDeleteTarget(null)
+            await deleteImplementation(archiveTarget.id)
+            setArchiveTarget(null)
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to delete implementation')
+            setActionError(err instanceof Error ? err.message : 'Failed to archive implementation')
         } finally {
             setIsSubmitting(false)
         }
-    }, [deleteTarget, deleteImplementation])
+    }, [archiveTarget, deleteImplementation])
+
+    const handleRestore = useCallback(async () => {
+        if (!restoreTarget) {
+            return
+        }
+        setIsSubmitting(true)
+        setActionError('')
+        try {
+            await restoreImplementation(restoreTarget.id)
+            setRestoreTarget(null)
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Failed to restore implementation')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }, [restoreTarget, restoreImplementation])
 
     if (loading) {
         return (
@@ -112,6 +144,8 @@ export const ImplementationsList: FC = () => {
         )
     }
 
+    const emptyMessage = searchTerm ? 'No implementations match your search.' : statusFilter === 'archived' ? 'No archived implementations.' : 'No implementations yet.'
+
     return (
         <div className={styles.container}>
             <Heading title="Implementations" />
@@ -124,16 +158,32 @@ export const ImplementationsList: FC = () => {
 
             <Card className={styles.card}>
                 <div className={styles.toolbar}>
-                    <div className={styles.searchWrapper}>
-                        <InputField
-                            placeholder="Search implementations..."
-                            value={searchTerm}
-                            onChange={(e: { value: string }) => {
-                                setSearchTerm(e.value)
+                    <div className={styles.filters}>
+                        <div className={styles.searchWrapper}>
+                            <InputField
+                                placeholder="Search implementations..."
+                                value={searchTerm}
+                                onChange={(e: { value: string }) => {
+                                    setSearchTerm(e.value)
+                                    setCurrentPage(1)
+                                }}
+                                data-test="search-implementations"
+                            />
+                        </div>
+                        <SingleSelectField
+                            label="Status"
+                            selected={statusFilter}
+                            onChange={(e: { selected: string }) => {
+                                setStatusFilter(e.selected as StatusFilter)
                                 setCurrentPage(1)
                             }}
-                            data-test="search-implementations"
-                        />
+                            className={styles.statusFilter}
+                            data-test="status-filter"
+                        >
+                            {statusOptions.map((option) => (
+                                <SingleSelectOption key={option.value} value={option.value} label={option.label} />
+                            ))}
+                        </SingleSelectField>
                     </div>
                     <Button primary onClick={() => setShowCreateModal(true)} data-test="create-implementation">
                         Add Implementation
@@ -142,8 +192,8 @@ export const ImplementationsList: FC = () => {
 
                 {paginatedImplementations.length === 0 ? (
                     <div className={styles.emptyState}>
-                        <p>{searchTerm ? 'No implementations match your search.' : 'No implementations yet.'}</p>
-                        {!searchTerm && (
+                        <p>{emptyMessage}</p>
+                        {!searchTerm && statusFilter === 'active' && (
                             <Button small onClick={() => setShowCreateModal(true)}>
                                 Create your first implementation
                             </Button>
@@ -162,46 +212,56 @@ export const ImplementationsList: FC = () => {
                                 </DataTableRow>
                             </DataTableHead>
                             <DataTableBody>
-                                {paginatedImplementations.map((impl) => (
-                                    <DataTableRow key={impl.id} data-test={`implementation-row-${impl.id}`}>
-                                        <DataTableCell>
-                                            <strong>{impl.name}</strong>
-                                        </DataTableCell>
-                                        <DataTableCell>{impl.country || '-'}</DataTableCell>
-                                        <DataTableCell>{impl.contactEmail || '-'}</DataTableCell>
-                                        <DataTableCell>
-                                            {impl.dhis2InstanceUrl ? (
-                                                <a
-                                                    href={impl.dhis2InstanceUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className={styles.instanceLink}
-                                                >
-                                                    {(() => {
-                                                        try {
-                                                            return new URL(impl.dhis2InstanceUrl).hostname
-                                                        } catch {
-                                                            return impl.dhis2InstanceUrl
-                                                        }
-                                                    })()}
-                                                </a>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </DataTableCell>
-                                        <DataTableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                                            <ButtonStrip>
-                                                <Button small onClick={() => navigate(`/implementations/${impl.id}`)} data-test={`view-impl-${impl.id}`}>
-                                                    View
-                                                </Button>
-                                                <Button small destructive onClick={() => setDeleteTarget(impl)} data-test={`delete-impl-${impl.id}`}>
-                                                    Delete
-                                                </Button>
-                                            </ButtonStrip>
-                                        </DataTableCell>
-                                    </DataTableRow>
-                                ))}
+                                {paginatedImplementations.map((impl) => {
+                                    const isArchived = impl.isActive === false
+                                    return (
+                                        <DataTableRow key={impl.id} data-test={`implementation-row-${impl.id}`}>
+                                            <DataTableCell>
+                                                <strong>{impl.name}</strong>
+                                            </DataTableCell>
+                                            <DataTableCell>{impl.country || '-'}</DataTableCell>
+                                            <DataTableCell>{impl.contactEmail || '-'}</DataTableCell>
+                                            <DataTableCell>
+                                                {impl.dhis2InstanceUrl ? (
+                                                    <a
+                                                        href={impl.dhis2InstanceUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className={styles.instanceLink}
+                                                    >
+                                                        {(() => {
+                                                            try {
+                                                                return new URL(impl.dhis2InstanceUrl).hostname
+                                                            } catch {
+                                                                return impl.dhis2InstanceUrl
+                                                            }
+                                                        })()}
+                                                    </a>
+                                                ) : (
+                                                    '-'
+                                                )}
+                                            </DataTableCell>
+                                            <DataTableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                                                <ButtonStrip>
+                                                    <Button small onClick={() => navigate(`/implementations/${impl.id}`)} data-test={`view-impl-${impl.id}`}>
+                                                        View
+                                                    </Button>
+                                                    {isAdmin &&
+                                                        (isArchived ? (
+                                                            <Button small onClick={() => setRestoreTarget(impl)} data-test={`restore-impl-${impl.id}`}>
+                                                                Restore
+                                                            </Button>
+                                                        ) : (
+                                                            <Button small destructive onClick={() => setArchiveTarget(impl)} data-test={`archive-impl-${impl.id}`}>
+                                                                Archive
+                                                            </Button>
+                                                        ))}
+                                                </ButtonStrip>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    )
+                                })}
                             </DataTableBody>
                         </DataTable>
 
@@ -241,13 +301,23 @@ export const ImplementationsList: FC = () => {
             )}
 
             <ConfirmationModal
-                open={!!deleteTarget}
-                title="Delete Implementation"
-                message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
-                confirmLabel="Delete"
+                open={!!archiveTarget}
+                title="Archive Implementation"
+                message={`Archive "${archiveTarget?.name}"? ${ARCHIVE_MESSAGE}`}
+                confirmLabel="Archive"
                 destructive
-                onConfirm={handleDelete}
-                onCancel={() => setDeleteTarget(null)}
+                onConfirm={handleArchive}
+                onCancel={() => setArchiveTarget(null)}
+                loading={isSubmitting}
+            />
+
+            <ConfirmationModal
+                open={!!restoreTarget}
+                title="Restore Implementation"
+                message={`Restore "${restoreTarget?.name}" to the working list?`}
+                confirmLabel="Restore"
+                onConfirm={handleRestore}
+                onCancel={() => setRestoreTarget(null)}
                 loading={isSubmitting}
             />
         </div>
