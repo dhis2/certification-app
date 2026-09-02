@@ -158,6 +158,9 @@ export class TemplateLoaderService implements OnModuleInit {
           evidenceRequired: crit.evidenceRequired,
           evidenceDescription: crit.evidenceDescription ?? undefined,
           cisMapping: crit.cisMapping,
+          verificationCommands: crit.verificationCommands ?? undefined,
+          score: crit.score == null ? undefined : Number(crit.score),
+          notes: crit.notes ?? undefined,
           weight: Number(crit.weight),
           minPassingScore: crit.minPassingScore,
           maxScore: crit.maxScore,
@@ -242,6 +245,9 @@ export class TemplateLoaderService implements OnModuleInit {
             controlType: crit.controlType as ControlType,
             cisMapping: crit.cisMapping,
             justification: crit.justification ?? null,
+            verificationCommands: crit.verificationCommands ?? null,
+            score: crit.score ?? null,
+            notes: crit.notes ?? null,
           })),
         })),
       },
@@ -297,13 +303,8 @@ export class TemplateLoaderService implements OnModuleInit {
 
   private parseYaml(content: string, source: string): TemplateDefinition {
     try {
-      const definition = yaml.load(content) as TemplateDefinition;
-
-      if (!definition || typeof definition !== 'object') {
-        throw new Error('Invalid YAML structure');
-      }
-
-      return definition;
+      const raw: unknown = yaml.load(content);
+      return this.normalizeIncomingDefinition(raw);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown parsing error';
@@ -311,6 +312,42 @@ export class TemplateLoaderService implements OnModuleInit {
         `Failed to parse template from ${source}: ${message}`,
       );
     }
+  }
+
+  private normalizeIncomingDefinition(raw: unknown): TemplateDefinition {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('Invalid YAML structure');
+    }
+
+    const input = raw as Record<string, unknown>;
+    const {
+      templateName,
+      templateDescription,
+      name,
+      description,
+      categories,
+      ...rest
+    } = input;
+
+    const normalizedCategories = Array.isArray(categories)
+      ? categories.map((cat, index) => {
+          if (!cat || typeof cat !== 'object' || Array.isArray(cat)) {
+            return cat;
+          }
+          const category = cat as Record<string, unknown>;
+          if (category.sortOrder !== undefined && category.sortOrder !== null) {
+            return category;
+          }
+          return { ...category, sortOrder: index + 1 };
+        })
+      : categories;
+
+    return {
+      ...rest,
+      name: name ?? templateName,
+      description: description ?? templateDescription,
+      categories: normalizedCategories,
+    } as TemplateDefinition;
   }
 
   private sanitizeFilename(filename: string): string {

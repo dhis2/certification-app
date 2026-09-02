@@ -67,6 +67,9 @@ export class CriterionService {
       cisMapping: dto.cisMapping ?? null,
       verificationMethod: dto.verificationMethod ?? null,
       justification: dto.justification ?? null,
+      verificationCommands: dto.verificationCommands ?? null,
+      score: dto.score ?? null,
+      notes: dto.notes ?? null,
     });
 
     return this.criterionRepository.save(criterion);
@@ -141,6 +144,15 @@ export class CriterionService {
     }
     if (dto.justification !== undefined) {
       criterion.justification = dto.justification ?? null;
+    }
+    if (dto.verificationCommands !== undefined) {
+      criterion.verificationCommands = dto.verificationCommands ?? null;
+    }
+    if (dto.score !== undefined) {
+      criterion.score = dto.score ?? null;
+    }
+    if (dto.notes !== undefined) {
+      criterion.notes = dto.notes ?? null;
     }
 
     return this.criterionRepository.save(criterion);

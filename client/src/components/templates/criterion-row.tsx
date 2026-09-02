@@ -80,6 +80,27 @@ export const CriterionRow: FC<CriterionRowProps> = ({ criterion, showDetails: in
                         </div>
                     )}
 
+                    {criterion.justification && (
+                        <div className={styles.detailSection}>
+                            <h4 className={styles.detailLabel}>Justification</h4>
+                            <p className={styles.detailText}>{criterion.justification}</p>
+                        </div>
+                    )}
+
+                    {criterion.verificationCommands && (
+                        <div className={styles.detailSection}>
+                            <h4 className={styles.detailLabel}>Verification Commands</h4>
+                            <pre className={styles.detailCommands}>{criterion.verificationCommands}</pre>
+                        </div>
+                    )}
+
+                    {criterion.notes && (
+                        <div className={styles.detailSection}>
+                            <h4 className={styles.detailLabel}>Notes</h4>
+                            <p className={styles.detailText}>{criterion.notes}</p>
+                        </div>
+                    )}
+
                     {criterion.evidenceDescription && (
                         <div className={styles.detailSection}>
                             <h4 className={styles.detailLabel}>Evidence Description</h4>

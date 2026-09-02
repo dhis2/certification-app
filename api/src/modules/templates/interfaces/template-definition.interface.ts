@@ -14,6 +14,9 @@ export interface CriterionDefinition {
   evidenceRequired?: boolean;
   evidenceDescription?: string;
   cisMapping?: string | null;
+  verificationCommands?: string | null;
+  score?: number | null;
+  notes?: string | null;
   weight?: number;
   minPassingScore?: number;
   maxScore?: number;

@@ -16,6 +16,9 @@ export interface CriterionDefinition {
     evidenceRequired?: boolean
     evidenceDescription?: string
     cisMapping?: string | null
+    verificationCommands?: string | null
+    score?: number | null
+    notes?: string | null
     weight?: number
     minPassingScore?: number
     maxScore?: number
@@ -67,6 +70,9 @@ export interface CriterionResponse {
     controlGroup: ControlGroupType
     controlType: ControlType
     cisMapping?: string | null
+    verificationCommands?: string | null
+    score?: number | null
+    notes?: string | null
 }
 
 export interface CategoryResponse {
@@ -226,6 +232,8 @@ export interface TemplateConfig {
     maxVerificationMethodLength: number
     maxCisMappingLength: number
     maxJustificationLength: number
+    maxVerificationCommandsLength: number
+    maxNotesLength: number
     maxFilenameLength: number
 }
 

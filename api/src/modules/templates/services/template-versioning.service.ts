@@ -169,6 +169,10 @@ export class TemplateVersioningService {
             controlType: criterion.controlType,
             cisMapping: criterion.cisMapping,
             verificationMethod: criterion.verificationMethod,
+            justification: criterion.justification,
+            verificationCommands: criterion.verificationCommands,
+            score: criterion.score,
+            notes: criterion.notes,
           });
 
           await manager.save(Criterion, newCriterion);

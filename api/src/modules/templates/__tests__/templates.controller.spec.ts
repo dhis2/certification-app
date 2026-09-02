@@ -58,6 +58,9 @@ const createMockCriterion = (overrides = {}) => ({
   cisMapping: null,
   verificationMethod: null,
   justification: null,
+  verificationCommands: null,
+  score: null,
+  notes: null,
   createdAt: new Date(),
   ...overrides,
 });

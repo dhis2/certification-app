@@ -48,6 +48,9 @@ export interface Criterion {
     controlType: 'technical' | 'organizational'
     cisMapping?: string
     verificationMethod?: string
+    justification?: string | null
+    verificationCommands?: string | null
+    notes?: string | null
     weight: number
     isMandatory: boolean
     evidenceRequired: boolean

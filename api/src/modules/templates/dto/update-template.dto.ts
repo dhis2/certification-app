@@ -175,4 +175,30 @@ export class UpdateCriterionDto {
   @IsString()
   @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_JUSTIFICATION_LENGTH)
   justification?: string | null | undefined;
+
+  @ApiPropertyOptional({
+    description: 'Commands or checks used to verify the control',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_VERIFICATION_COMMANDS_LENGTH)
+  verificationCommands?: string | null | undefined;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Optional placeholder score on the template',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  score?: number | null | undefined;
+
+  @ApiPropertyOptional({
+    description: 'Default or placeholder assessor notes for this control',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(TEMPLATE_VALIDATION_LIMITS.MAX_NOTES_LENGTH)
+  notes?: string | null | undefined;
 }

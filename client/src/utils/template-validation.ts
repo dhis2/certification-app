@@ -17,6 +17,8 @@ export const DEFAULT_TEMPLATE_LIMITS: TemplateConfig = {
     maxVerificationMethodLength: 4000,
     maxCisMappingLength: 50,
     maxJustificationLength: 8000,
+    maxVerificationCommandsLength: 16000,
+    maxNotesLength: 8000,
     maxFilenameLength: 255,
 }
 

@@ -84,6 +84,15 @@ export class Criterion {
   @Column({ type: 'text', nullable: true })
   justification!: string | null;
 
+  @Column({ name: 'verification_commands', type: 'text', nullable: true })
+  verificationCommands!: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 4, nullable: true })
+  score!: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  notes!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

@@ -235,6 +235,9 @@ export class TemplatesService {
             cisMapping: criterionDto.cisMapping ?? null,
             verificationMethod: criterionDto.verificationMethod ?? null,
             justification: criterionDto.justification ?? null,
+            verificationCommands: criterionDto.verificationCommands ?? null,
+            score: criterionDto.score ?? null,
+            notes: criterionDto.notes ?? null,
           });
 
           await manager.save(Criterion, criterion);

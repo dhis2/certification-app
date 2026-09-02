@@ -229,6 +229,18 @@
     margin-bottom: 4px;
 }
 
+.commands {
+    margin: 0;
+    padding: 8px 12px;
+    background: var(--paper-muted, #f4f6f8);
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
 .scoringSection {
     margin-top: 32px;
     border: 1px solid var(--border);
@@ -397,6 +409,11 @@
 
     .blockLabel {
         font-size: 10px;
+    }
+
+    .commands {
+        font-size: 9px;
+        padding: 4px 6px;
     }
 
     .scoringTable th,
