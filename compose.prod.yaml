@@ -47,6 +47,10 @@ services:
     cap_drop:
       - ALL
     cap_add:
+      # Entrypoint find/chown as root, then setpriv to uid 999. AOF dir is 0700.
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
       - SETGID
       - SETUID
     read_only: true
