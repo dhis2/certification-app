@@ -1,5 +1,50 @@
 import { z } from 'zod';
 
+const BOOLEAN_ENV_KEYS = [
+  'DB_SSL',
+  'MAIL_ENABLED',
+  'MAIL_SECURE',
+  'AUDIT_RETENTION_ARCHIVE',
+  'AUDIT_RETENTION_AUTO_CLEANUP',
+  'MONITORING_ENABLED',
+] as const;
+
+/** `Boolean("false")` is true — do not use `z.coerce.boolean()` for env strings. */
+export function parseEnvBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === 'true' ||
+    normalized === '1' ||
+    normalized === 'yes' ||
+    normalized === 'on'
+  ) {
+    return true;
+  }
+  if (
+    normalized === 'false' ||
+    normalized === '0' ||
+    normalized === 'no' ||
+    normalized === 'off'
+  ) {
+    return false;
+  }
+  return undefined;
+}
+
+function normalizeEnvBooleans(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...config };
+  for (const key of BOOLEAN_ENV_KEYS) {
+    if (!(key in next)) continue;
+    const parsed = parseEnvBoolean(next[key]);
+    if (parsed !== undefined) next[key] = parsed;
+  }
+  return next;
+}
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'staging', 'production'])
@@ -13,7 +58,7 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().default('postgres'),
   DB_NAME: z.string().default('dhis2_certification'),
   DATABASE_SSL: z.enum(['true', 'false']).optional(),
-  DB_SSL: z.coerce.boolean().default(false),
+  DB_SSL: z.boolean().default(false),
 
   // JWT configuration
   JWT_SECRET: z.string().min(32).optional(),
@@ -37,10 +82,10 @@ const envSchema = z.object({
   THROTTLE_AUTH_LIMIT: z.coerce.number().default(5),
 
   // Mail configuration
-  MAIL_ENABLED: z.coerce.boolean().default(true),
+  MAIL_ENABLED: z.boolean().default(true),
   MAIL_HOST: z.string().optional(),
   MAIL_PORT: z.coerce.number().default(587),
-  MAIL_SECURE: z.coerce.boolean().default(false),
+  MAIL_SECURE: z.boolean().default(false),
   MAIL_USER: z.string().optional(),
   MAIL_PASSWORD: z.string().optional(),
   MAIL_FROM_NAME: z.string().default('DHIS2 Server Certification'),
@@ -58,16 +103,16 @@ const envSchema = z.object({
   AUDIT_RETENTION_DEFAULT_DAYS: z.coerce.number().default(90),
   AUDIT_RETENTION_SECURITY_DAYS: z.coerce.number().default(365), // Auth events
   AUDIT_RETENTION_CERTIFICATE_DAYS: z.coerce.number().default(730), // 2 years
-  AUDIT_RETENTION_ARCHIVE: z.coerce.boolean().default(true),
+  AUDIT_RETENTION_ARCHIVE: z.boolean().default(true),
   AUDIT_RETENTION_BATCH_SIZE: z.coerce.number().default(1000),
-  AUDIT_RETENTION_AUTO_CLEANUP: z.coerce.boolean().default(true),
+  AUDIT_RETENTION_AUTO_CLEANUP: z.boolean().default(true),
 
   // Certificate validity (days)
   CERTIFICATE_VALIDITY_DAYS: z.coerce.number().min(30).max(1825).default(730),
   CERTIFICATE_RENEWAL_REMINDER_DAYS: z.coerce.number().default(60),
 
   // Monitoring and alerting
-  MONITORING_ENABLED: z.coerce.boolean().default(true),
+  MONITORING_ENABLED: z.boolean().default(true),
   MONITORING_CERT_EXPIRY_WARNING_DAYS: z.coerce.number().default(30),
   MONITORING_ERROR_RATE_THRESHOLD: z.coerce.number().min(0).max(100).default(5),
   MONITORING_METRICS_INTERVAL_MS: z.coerce.number().default(60000),
@@ -222,7 +267,7 @@ function validateStagingSecrets(
 export function envValidationSchema(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
-  const merged: Record<string, unknown> = { ...config };
+  const merged = normalizeEnvBooleans({ ...config });
   if (merged.DB_SSL === undefined && merged.DATABASE_SSL !== undefined) {
     merged.DB_SSL =
       merged.DATABASE_SSL === 'true' || merged.DATABASE_SSL === true;
