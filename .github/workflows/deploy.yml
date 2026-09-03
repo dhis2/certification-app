@@ -22,7 +22,7 @@ on:
       reason:
         required: false
         type: string
-        default: ""
+        default: ''
 
   workflow_dispatch:
     inputs:
@@ -34,11 +34,11 @@ on:
           - staging
           - production
       api-version:
-        description: "API image tag to deploy (e.g. sha-<full_sha> or v1.2.3[-staging|-production])."
+        description: 'API image tag to deploy (e.g. sha-<full_sha> or v1.2.3[-staging|-production]).'
         required: true
         type: string
       client-version:
-        description: "Client image tag to deploy (same shape as api-version)."
+        description: 'Client image tag to deploy (same shape as api-version).'
         required: true
         type: string
       skip_migrations:
@@ -50,7 +50,7 @@ on:
         description: Brief audit note (manual runs).
         required: false
         type: string
-        default: ""
+        default: ''
 
 permissions:
   contents: read
@@ -423,6 +423,19 @@ jobs:
             sleep 3
             waited=$((waited + 3))
           done
+
+      - name: Dump compose diagnostics
+        if: failure()
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set +e
+          docker compose --env-file .env ps -a
+          echo '----- dhis2-cert-api -----'
+          docker compose --env-file .env logs --no-color --tail 200 dhis2-cert-api
+          echo '----- dhis2-cert-redis -----'
+          docker compose --env-file .env logs --no-color --tail 80 dhis2-cert-redis
+          echo '----- dhis2-cert-db -----'
+          docker compose --env-file .env logs --no-color --tail 80 dhis2-cert-db
 
   smoke-test:
     name: Smoke test (${{ inputs.environment }})
