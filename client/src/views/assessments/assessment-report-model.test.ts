@@ -1,18 +1,5 @@
-import {
-    ComplianceStatus,
-    ControlGroup,
-    SubmissionStatus,
-    type Criterion,
-    type Submission,
-} from '../../types/index.ts'
-import {
-    buildAssessmentReport,
-    countCompliance,
-    escapeHtmlText,
-    isOpenAssessment,
-    reportBackPath,
-    sanitizeFilenamePart,
-} from './assessment-report-model.ts'
+import { ComplianceStatus, ControlGroup, SubmissionStatus, type Criterion, type Submission } from '../../types/index.ts'
+import { buildAssessmentReport, countCompliance, escapeHtmlText, isOpenAssessment, reportBackPath, sanitizeFilenamePart } from './assessment-report-model.ts'
 
 const criterion = (overrides: Partial<Criterion> & Pick<Criterion, 'id' | 'code'>): Criterion => ({
     name: overrides.name ?? overrides.code,
@@ -41,10 +28,7 @@ const baseSubmission = (): Submission => ({
                 description: 'Database controls',
                 weight: 1,
                 sortOrder: 1,
-                criteria: [
-                    criterion({ id: 'c1', code: 'DB-01', name: 'Backups' }),
-                    criterion({ id: 'c2', code: 'DB-02', name: 'Restore tests' }),
-                ],
+                criteria: [criterion({ id: 'c1', code: 'DB-01', name: 'Backups' }), criterion({ id: 'c2', code: 'DB-02', name: 'Restore tests' })],
             },
             {
                 id: 'cat-2',
@@ -100,13 +84,7 @@ describe('escapeHtmlText', () => {
 
 describe('countCompliance', () => {
     it('tallies each status including missing-as-not-tested via default', () => {
-        expect(
-            countCompliance([
-                ComplianceStatus.COMPLIANT,
-                ComplianceStatus.NON_COMPLIANT,
-                ComplianceStatus.NOT_TESTED,
-            ])
-        ).toEqual({
+        expect(countCompliance([ComplianceStatus.COMPLIANT, ComplianceStatus.NON_COMPLIANT, ComplianceStatus.NOT_TESTED])).toEqual({
             compliant: 1,
             partiallyCompliant: 0,
             nonCompliant: 1,
