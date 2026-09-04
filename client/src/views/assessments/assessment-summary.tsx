@@ -134,6 +134,9 @@ export const AssessmentSummary: FC = () => {
                     <Heading title="Assessment Summary" />
                 </div>
                 <ButtonStrip>
+                    <Button onClick={() => navigate(`/assessments/${id}/report`)} data-test="export-assessment-pdf">
+                        Export PDF
+                    </Button>
                     {canWithdraw && (
                         <Button destructive onClick={() => setShowWithdrawConfirm(true)}>
                             Withdraw Assessment

@@ -173,6 +173,9 @@ export const AssessmentsList: FC = () => {
                                                 <Button small onClick={() => handleRowClick(submission)} data-test={`view-assessment-${submission.id}`}>
                                                     {submission.status === SubmissionStatus.DRAFT || submission.status === SubmissionStatus.IN_PROGRESS ? 'Continue' : 'View'}
                                                 </Button>
+                                                <Button small onClick={() => navigate(`/assessments/${submission.id}/report`)} data-test={`export-assessment-${submission.id}`}>
+                                                    Export PDF
+                                                </Button>
                                                 {canDelete(submission) && (
                                                     <Button small destructive onClick={() => setDeleteTarget(submission)} data-test={`delete-assessment-${submission.id}`}>
                                                         Delete
