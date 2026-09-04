@@ -18,6 +18,7 @@ import {
     CreateAssessment,
     AssessmentForm,
     AssessmentSummary,
+    AssessmentReport,
     CertificateResult,
     VerifyCertificate,
     TemplatesList,
@@ -51,6 +52,7 @@ const router = createBrowserRouter(
                     <Route path="/assessments/new" element={<CreateAssessment />} />
                     <Route path="/assessments/:id" element={<AssessmentForm />} />
                     <Route path="/assessments/:id/summary" element={<AssessmentSummary />} />
+                    <Route path="/assessments/:id/report" element={<AssessmentReport />} />
                     <Route path="/assessments/:id/certificate" element={<CertificateResult />} />
 
                     <Route path="/settings" element={<Settings />} />

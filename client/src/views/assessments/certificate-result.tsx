@@ -161,7 +161,10 @@ export const CertificateResult: FC = () => {
                             <Button primary onClick={handleViewCertificate} disabled={!certificate} data-test="view-certificate">
                                 View certificate
                             </Button>
-                            <Button onClick={() => window.print()}>Print</Button>
+                            <Button onClick={() => navigate(`/assessments/${id}/report`)} data-test="export-assessment-pdf">
+                                Export PDF
+                            </Button>
+                            <Button onClick={() => window.print()}>Print certificate</Button>
                         </ButtonStrip>
 
                         {certificate?.verificationCode && (
@@ -222,9 +225,14 @@ export const CertificateResult: FC = () => {
                             <li>Collect evidence of compliance for each control</li>
                             <li>Resume this assessment to re-evaluate the controls</li>
                         </ol>
-                        <Button primary onClick={() => setShowResumeConfirm(true)} data-test="resume-assessment">
-                            Resume Assessment
-                        </Button>
+                        <ButtonStrip>
+                            <Button onClick={() => navigate(`/assessments/${id}/report`)} data-test="export-assessment-pdf">
+                                Export PDF
+                            </Button>
+                            <Button primary onClick={() => setShowResumeConfirm(true)} data-test="resume-assessment">
+                                Resume Assessment
+                            </Button>
+                        </ButtonStrip>
                     </div>
                 </>
             )}

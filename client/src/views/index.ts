@@ -4,7 +4,7 @@ export { NotFound } from './not-found/index.ts'
 
 export { ImplementationsList, ImplementationDetails } from './implementations/index.ts'
 
-export { AssessmentsList, CreateAssessment, AssessmentForm, AssessmentSummary, CertificateResult } from './assessments/index.ts'
+export { AssessmentsList, CreateAssessment, AssessmentForm, AssessmentSummary, AssessmentReport, CertificateResult } from './assessments/index.ts'
 
 export { VerifyCertificate } from './verify/index.ts'
 

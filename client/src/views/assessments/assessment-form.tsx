@@ -18,7 +18,9 @@ export const AssessmentForm: FC = () => {
     const [isCompleting, setIsCompleting] = useState(false)
     const [completeError, setCompleteError] = useState('')
 
-    const blocker = useBlocker(({ currentLocation, nextLocation }) => pendingChanges && currentLocation.pathname !== nextLocation.pathname)
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }) => pendingChanges && currentLocation.pathname !== nextLocation.pathname && !nextLocation.pathname.endsWith('/report')
+    )
 
     useEffect(() => {
         if (submission?.currentCategoryIndex !== undefined) {
@@ -81,6 +83,11 @@ export const AssessmentForm: FC = () => {
         },
         [saveImmediately]
     )
+
+    const handleExportPdf = useCallback(async () => {
+        await saveImmediately()
+        navigate(`/assessments/${id}/report`)
+    }, [saveImmediately, navigate, id])
 
     const handleComplete = useCallback(async () => {
         setIsCompleting(true)
@@ -160,6 +167,9 @@ export const AssessmentForm: FC = () => {
                         ) : null}
                     </div>
                     <ButtonStrip>
+                        <Button onClick={() => void handleExportPdf()} data-test="export-assessment-pdf">
+                            Export PDF
+                        </Button>
                         <Button onClick={() => navigate(`/assessments/${id}/summary`)}>View Summary</Button>
                         <Button primary onClick={() => setShowCompleteConfirm(true)} disabled={!isAssessmentComplete} data-test="complete-assessment">
                             Complete Assessment
